@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package cart.v1;
+
+option go_package = "api/cart/v1;v1";
+
+// 购物车服务
+service CartService {
+  // 获取购物车
+  rpc GetCart (GetCartRequest) returns (GetCartResponse);
+  // 添加商品到购物车
+  rpc AddItem (AddItemRequest) returns (AddItemResponse);
+  // 更新购物车商品数量
+  rpc UpdateQuantity (UpdateQuantityRequest) returns (UpdateQuantityResponse);
+  // 删除购物车商品
+  rpc RemoveItem (RemoveItemRequest) returns (RemoveItemResponse);
+  // 清空购物车
+  rpc ClearCart (ClearCartRequest) returns (ClearCartResponse);
+  // 选择/取消选择商品
+  rpc SelectItem (SelectItemRequest) returns (SelectItemResponse);
+  // 批量选择/取消选择
+  rpc BatchSelect (BatchSelectRequest) returns (BatchSelectResponse);
+}
+
+// 购物车商品项
+message CartItem {
+  int64 id = 1;
+  int64 user_id = 2;
+  int64 sku_id = 3;
+  int32 quantity = 4;
+  int32 is_selected = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  string product_name = 8;
+  string price = 9;
+  string product_image = 10;
+}
+
+// 获取购物车请求
+message GetCartRequest {
+  int64 user_id = 1;
+}
+
+// 获取购物车响应
+message GetCartResponse {
+  int32 code = 1;
+  string message = 2;
+  repeated CartItem data = 3;
+}
+
+// 添加商品到购物车请求
+message AddItemRequest {
+  int64 user_id = 1;
+  int64 sku_id = 2;
+  string product_name = 3;
+  string price = 4;
+  int32 quantity = 5;
+  string product_image = 6;
+}
+
+// 添加商品到购物车响应
+message AddItemResponse {
+  int32 code = 1;
+  string message = 2;
+  CartItem data = 3;
+}
+
+// 更新数量请求
+message UpdateQuantityRequest {
+  int64 user_id = 1;
+  int64 sku_id = 2;
+  int32 quantity = 3;
+}
+
+// 更新数量响应
+message UpdateQuantityResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 删除商品请求
+message RemoveItemRequest {
+  int64 user_id = 1;
+  repeated int64 sku_ids = 2;
+}
+
+// 删除商品响应
+message RemoveItemResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 清空购物车请求
+message ClearCartRequest {
+  int64 user_id = 1;
+}
+
+// 清空购物车响应
+message ClearCartResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 选择商品请求
+message SelectItemRequest {
+  int64 user_id = 1;
+  int64 sku_id = 2;
+  int32 is_selected = 3;
+}
+
+// 选择商品响应
+message SelectItemResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 批量选择请求
+message BatchSelectRequest {
+  int64 user_id = 1;
+  repeated int64 sku_ids = 2;
+  int32 is_selected = 3;
+}
+
+// 批量选择响应
+message BatchSelectResponse {
+  int32 code = 1;
+  string message = 2;
+}
+

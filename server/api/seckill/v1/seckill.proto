@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package seckill.v1;
+
+option go_package = "api/seckill/v1;v1";
+
+// 秒杀服务
+service SeckillService {
+    // 秒杀下单
+    rpc Seckill (SeckillRequest) returns (SeckillResponse);
+    // 获取秒杀活动列表
+    rpc ListSeckillActivities (ListSeckillActivitiesRequest) returns (ListSeckillActivitiesResponse);
+    // 获取秒杀活动详情
+    rpc GetSeckillActivity (GetSeckillActivityRequest) returns (GetSeckillActivityResponse);
+    // 创建秒杀活动（管理后台）
+    rpc CreateSeckillActivity (CreateSeckillActivityRequest) returns (CreateSeckillActivityResponse);
+    // 更新秒杀活动（管理后台）
+    rpc UpdateSeckillActivity (UpdateSeckillActivityRequest) returns (UpdateSeckillActivityResponse);
+    // 删除秒杀活动（管理后台）
+    rpc DeleteSeckillActivity (DeleteSeckillActivityRequest) returns (DeleteSeckillActivityResponse);
+}
+
+// 秒杀请求
+message SeckillRequest {
+    int64 user_id = 1;
+    int64 sku_id = 2;
+    int32 quantity = 3; // 数量，默认1
+}
+
+// 秒杀响应
+message SeckillResponse {
+    int32 code = 1;
+    string message = 2;
+    SeckillData data = 3;
+}
+
+// 秒杀数据
+message SeckillData {
+    bool success = 1;
+    string order_no = 2; // 订单号（如果成功）
+    string message = 3; // 提示信息
+}
+
+// 获取秒杀活动列表请求
+message ListSeckillActivitiesRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    int32 status = 3; // 状态：0-未开始，1-进行中，2-已结束
+    bool include_disabled = 4; // 是否包含已禁用活动（管理后台用）
+}
+
+// 获取秒杀活动列表响应
+message ListSeckillActivitiesResponse {
+    int32 code = 1;
+    string message = 2;
+    SeckillActivityListData data = 3;
+}
+
+// 秒杀活动列表数据
+message SeckillActivityListData {
+    repeated SeckillActivity list = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int64 total = 4;
+    int32 total_pages = 5;
+}
+
+// 秒杀活动
+message SeckillActivity {
+    int64 id = 1;
+    string name = 2;
+    int64 sku_id = 3;
+    string sku_name = 4;
+    string sku_image = 5;
+    string seckill_price = 6; // 秒杀价
+    string original_price = 7; // 原价
+    int32 stock = 8; // 库存
+    int32 sold = 9; // 已售
+    int64 start_time = 10; // 开始时间（时间戳）
+    int64 end_time = 11; // 结束时间（时间戳）
+    int32 status = 12; // 状态：0-未开始，1-进行中，2-已结束
+    int32 enable_status = 13; // 配置状态：0-禁用，1-启用（管理后台用）
+}
+
+// 获取秒杀活动详情请求
+message GetSeckillActivityRequest {
+    int64 id = 1;
+}
+
+// 获取秒杀活动详情响应
+message GetSeckillActivityResponse {
+    int32 code = 1;
+    string message = 2;
+    SeckillActivity data = 3;
+}
+
+// 创建秒杀活动请求
+message CreateSeckillActivityRequest {
+    string name = 1;
+    int64 sku_id = 2;
+    string seckill_price = 3;
+    int32 stock = 4;
+    int64 start_time = 5; // Unix 秒
+    int64 end_time = 6;   // Unix 秒
+    int32 enable_status = 7; // 0-禁用,1-启用
+}
+
+message CreateSeckillActivityResponse {
+    int32 code = 1;
+    string message = 2;
+    SeckillActivity data = 3;
+}
+
+// 更新秒杀活动请求
+message UpdateSeckillActivityRequest {
+    int64 id = 1;
+    string name = 2;
+    int64 sku_id = 3;
+    string seckill_price = 4;
+    int32 stock = 5;
+    int64 start_time = 6; // Unix 秒
+    int64 end_time = 7;   // Unix 秒
+    int32 enable_status = 8; // 0-禁用,1-启用
+}
+
+message UpdateSeckillActivityResponse {
+    int32 code = 1;
+    string message = 2;
+    SeckillActivity data = 3;
+}
+
+message DeleteSeckillActivityRequest {
+    int64 id = 1;
+}
+
+message DeleteSeckillActivityResponse {
+    int32 code = 1;
+    string message = 2;
+}

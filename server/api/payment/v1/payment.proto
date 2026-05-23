@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "api/payment/v1;v1";
+
+// 支付服务
+service PaymentService {
+  // 创建支付单
+  rpc CreatePayment (CreatePaymentRequest) returns (CreatePaymentResponse);
+  // 获取支付单
+  rpc GetPayment (GetPaymentRequest) returns (GetPaymentResponse);
+  // 支付回调处理
+  rpc PaymentCallback (PaymentCallbackRequest) returns (PaymentCallbackResponse);
+  // 申请退款
+  rpc Refund (RefundRequest) returns (RefundResponse);
+  // 查询支付状态
+  rpc QueryPaymentStatus (QueryPaymentStatusRequest) returns (QueryPaymentStatusResponse);
+}
+
+// 支付单信息
+message Payment {
+  int64 id = 1;
+  string payment_no = 2;
+  int64 order_id = 3;
+  string order_no = 4;
+  int64 user_id = 5;
+  string amount = 6;
+  int32 payment_method = 7;
+  int32 status = 8;
+  string third_party_no = 9;
+  string paid_at = 10;
+  string expire_at = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// 创建支付单请求
+message CreatePaymentRequest {
+  int64 order_id = 1;
+  string order_no = 2;
+  int64 user_id = 3;
+  string amount = 4;
+  int32 payment_method = 5;
+}
+
+// 创建支付单响应
+message CreatePaymentResponse {
+  int32 code = 1;
+  string message = 2;
+  Payment data = 3;
+  string pay_url = 4; // 支付链接（用于跳转支付）
+}
+
+// 获取支付单请求
+message GetPaymentRequest {
+  string payment_no = 1;
+}
+
+// 获取支付单响应
+message GetPaymentResponse {
+  int32 code = 1;
+  string message = 2;
+  Payment data = 3;
+}
+
+// 支付回调请求
+message PaymentCallbackRequest {
+  string payment_no = 1;
+  string third_party_no = 2;
+  int32 status = 3;
+  string callback_data = 4; // JSON格式的第三方回调数据
+}
+
+// 支付回调响应
+message PaymentCallbackResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+// 退款请求
+message RefundRequest {
+  string payment_no = 1;
+  string refund_amount = 2;
+  string reason = 3;
+}
+
+// 退款响应
+message RefundResponse {
+  int32 code = 1;
+  string message = 2;
+  string refund_no = 3;
+}
+
+// 查询支付状态请求
+message QueryPaymentStatusRequest {
+  string payment_no = 1;
+}
+
+// 查询支付状态响应
+message QueryPaymentStatusResponse {
+  int32 code = 1;
+  string message = 2;
+  int32 status = 3;
+}
+

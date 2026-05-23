@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "api/user/v1;v1";
+
+//用户服务
+service UserService {
+    //用户注册
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+    //用户登录
+    rpc Login (LoginRequest) returns (LoginResponse);
+    //获取用户信息
+    rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse);
+    //更改用户信息
+    rpc UpdateUserInfo (UpdateUserInfoRequest) returns (UpdateUserInfoResponse);
+    //获取用户列表(管理后台)
+    rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+    //删除用户(管理后台)
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+    //获取用户地址列表
+    rpc GetAddressList (GetAddressListRequest) returns (GetAddressListResponse);
+    //添加地址
+    rpc AddAddress (AddAddressRequest) returns (AddAddressResponse);
+    //更新地址
+    rpc UpdateAddress (UpdateAddressRequest) returns (UpdateAddressResponse);
+    //删除地址
+    rpc DeleteAddress (DeleteAddressRequest) returns (DeleteAddressResponse);
+}
+
+// 用户信息
+message User {
+    int64 id = 1;
+    string username = 2;    //用户名
+    string nickname = 3;    //昵称
+    string phone = 4;       //电话
+    string email = 5;       //邮箱
+    string avatar = 6;      //头像
+    int32 gender = 7;       //性别
+    string birthday = 8;    //生日
+    int32 status = 9;       //状态
+    int32 member_level = 10;//会员等级
+    int32 points = 11;      //积分
+    string created_at = 12;
+    string updated_at = 13;
+    int32 is_admin = 14;    //是否管理员 0-否 1-是
+}
+
+// 用户地址
+message Address {
+    int64 id = 1;
+    int64 user_id = 2;          //用户id
+    string receiver_name = 3;   //收件人姓名
+    string receiver_phone = 4;  // 收件人电话
+    string province = 5;        //省份
+    string city = 6;            // 城市
+    string district = 7;        //地区
+    string detail = 8;          //详细
+    string postal_code = 9;     //邮政编码
+    int32 is_default = 10;      //是否为默认地址
+    string created_at = 11;
+    string updated_at = 12;
+}
+
+// 注册请求
+message RegisterRequest {
+    string username = 1;
+    string password = 2;
+    string phone = 3;
+    string email = 4;
+    string verify_code = 5; // 验证码
+}
+
+// 注册响应
+message RegisterResponse {
+    int32 code = 1;
+    string message = 2;
+    User data = 3;
+}
+
+// 登录请求
+message LoginRequest {
+    string username = 1; // 用户名/手机号/邮箱
+    string password = 2;
+    int32 login_type = 3; // 1-用户名, 2-手机号, 3-邮箱
+    string verify_code = 4; // 验证码（可选，前端已做基础验证）
+}
+
+// 登录响应
+message LoginResponse {
+    int32 code = 1;
+    string message = 2;
+    LoginData data = 3;
+}
+
+message LoginData {
+    User user = 1;
+    string token = 2;
+    int64 expire_time = 3;
+    int32 is_admin = 4; // 是否管理员
+}
+
+// 获取用户信息请求
+message GetUserInfoRequest {
+    int64 user_id = 1;
+}
+
+// 获取用户信息响应
+message GetUserInfoResponse {
+    int32 code = 1;
+    string message = 2;
+    User data = 3;
+}
+
+// 更新用户信息请求
+message UpdateUserInfoRequest {
+    int64 user_id = 1;
+    string nickname = 2;
+    string avatar = 3;
+    optional int32 gender = 4;
+    string birthday = 5;
+    string phone = 6;
+    string email = 7;
+}
+
+// 更新用户信息响应
+message UpdateUserInfoResponse {
+    int32 code = 1;
+    string message = 2;
+    User data = 3;
+}
+
+// 获取地址列表请求
+message GetAddressListRequest {
+    int64 user_id = 1;
+}
+
+// 获取地址列表响应
+message GetAddressListResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Address data = 3;
+}
+
+// 添加地址请求
+message AddAddressRequest {
+    int64 user_id = 1;
+    string receiver_name = 2;
+    string receiver_phone = 3;
+    string province = 4;
+    string city = 5;
+    string district = 6;
+    string detail = 7;
+    string postal_code = 8;
+    int32 is_default = 9;
+}
+
+// 添加地址响应
+message AddAddressResponse {
+    int32 code = 1;
+    string message = 2;
+    Address data = 3;
+}
+
+// 更新地址请求
+message UpdateAddressRequest {
+    int64 id = 1;
+    int64 user_id = 2;
+    string receiver_name = 3;
+    string receiver_phone = 4;
+    string province = 5;
+    string city = 6;
+    string district = 7;
+    string detail = 8;
+    string postal_code = 9;
+    int32 is_default = 10;
+}
+
+// 更新地址响应
+message UpdateAddressResponse {
+    int32 code = 1;
+    string message = 2;
+    Address data = 3;
+}
+
+// 删除地址请求
+message DeleteAddressRequest {
+    int64 id = 1;
+    int64 user_id = 2;
+}
+
+// 删除地址响应
+message DeleteAddressResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取用户列表请求（管理后台）
+message ListUsersRequest {
+    int32 page = 1;        // 页码，从1开始
+    int32 page_size = 2;   // 每页数量
+    string keyword = 3;    // 搜索关键词（用户名/手机号/邮箱）
+    int32 status = 4;      // 状态筛选（0-全部，1-正常，2-禁用）
+}
+
+// 获取用户列表响应
+message ListUsersResponse {
+    int32 code = 1;
+    string message = 2;
+    ListUsersData data = 3;
+}
+
+message ListUsersData {
+    repeated User users = 1;
+    int32 total = 2;      // 总数量
+    int32 page = 3;       // 当前页码
+    int32 page_size = 4;  // 每页数量
+}
+
+// 删除用户请求（管理后台）
+message DeleteUserRequest {
+    int64 id = 1;  // 路径参数 :id 会映射到这里
+}
+
+// 删除用户响应
+message DeleteUserResponse {
+    int32 code = 1;
+    string message = 2;
+}
+

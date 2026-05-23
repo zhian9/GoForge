@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package job.v1;
+
+option go_package = "api/job/v1;v1";
+
+// 定时任务服务
+service JobService {
+    // 订单超时取消
+    rpc CancelExpiredOrders (CancelExpiredOrdersRequest) returns (CancelExpiredOrdersResponse);
+    // 优惠券过期处理
+    rpc ProcessExpiredCoupons (ProcessExpiredCouponsRequest) returns (ProcessExpiredCouponsResponse);
+    // 数据统计
+    rpc GenerateStatistics (GenerateStatisticsRequest) returns (GenerateStatisticsResponse);
+}
+
+// 订单超时取消请求
+message CancelExpiredOrdersRequest {
+    int32 timeout_minutes = 1; // 超时分钟数
+}
+
+// 订单超时取消响应
+message CancelExpiredOrdersResponse {
+    int32 code = 1;
+    string message = 2;
+    int32 cancelled_count = 3;
+}
+
+// 优惠券过期处理请求
+message ProcessExpiredCouponsRequest {
+}
+
+// 优惠券过期处理响应
+message ProcessExpiredCouponsResponse {
+    int32 code = 1;
+    string message = 2;
+    int32 expired_count = 3;
+}
+
+// 数据统计请求
+message GenerateStatisticsRequest {
+    string date = 1; // 日期 YYYY-MM-DD
+}
+
+// 数据统计响应
+message GenerateStatisticsResponse {
+    int32 code = 1;
+    string message = 2;
+}
+

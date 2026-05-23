@@ -1,0 +1,429 @@
+Name: api-gateway
+Host: 0.0.0.0
+Port: 8080
+Mode: dev
+
+# 超时配置（毫秒）- 文件上传需要更长时间
+Timeout: 60000
+
+# JWT 认证配置
+Auth:
+  AccessSecret: "goforge-jwt-secret"
+  AccessExpire: 86400
+
+# 日志配置
+Log:
+  ServiceName: api-gateway
+  Mode: console
+  Level: debug
+  Path: logs
+  Compress: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+
+# Prometheus 配置（使用不同端口避免与基础设施 Prometheus 冲突）
+# 注意：product-service 使用 9092，gateway 使用 9110
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9110
+  Path: /metrics
+
+# gRPC 上游服务配置
+Upstreams:
+  # 用户服务
+  - Name: user-service
+    Grpc:
+      # etcd 服务发现（开发环境可使用直连）
+      # Etcd:
+      #   Hosts:
+      #     - localhost:2379
+      #   Key: user-service.rpc
+      # 直连模式（开发环境）
+      Target: 127.0.0.1:8000
+      Timeout: 2000
+    # protoDescriptor 模式：需要 proto 文件（生产环境）
+    # ProtoSets:
+    #   - api/user/v1/user.pb
+    # grpcReflection 模式：开发环境使用（不需要 ProtoSets）
+    # 路由映射（为每个唯一路径添加一个 OPTIONS 方法支持 CORS 预检请求）
+    Mappings:
+      - Method: options
+        Path: /api/v1/user/register
+        RpcPath: user.v1.UserService/Register
+      - Method: post
+        Path: /api/v1/user/register
+        RpcPath: user.v1.UserService/Register
+      - Method: options
+        Path: /api/v1/user/login
+        RpcPath: user.v1.UserService/Login
+      - Method: post
+        Path: /api/v1/user/login
+        RpcPath: user.v1.UserService/Login
+      - Method: options
+        Path: /api/v1/user/info
+        RpcPath: user.v1.UserService/GetUserInfo
+      - Method: get
+        Path: /api/v1/user/info
+        RpcPath: user.v1.UserService/GetUserInfo
+      - Method: put
+        Path: /api/v1/user/info
+        RpcPath: user.v1.UserService/UpdateUserInfo
+      - Method: options
+        Path: /api/v1/users
+        RpcPath: user.v1.UserService/ListUsers
+      - Method: get
+        Path: /api/v1/users
+        RpcPath: user.v1.UserService/ListUsers
+      - Method: options
+        Path: /api/v1/users/:id
+        RpcPath: user.v1.UserService/DeleteUser
+      - Method: delete
+        Path: /api/v1/users/:id
+        RpcPath: user.v1.UserService/DeleteUser
+      - Method: options
+        Path: /api/v1/user/address
+        RpcPath: user.v1.UserService/GetAddressList
+      - Method: get
+        Path: /api/v1/user/address
+        RpcPath: user.v1.UserService/GetAddressList
+      - Method: post
+        Path: /api/v1/user/address
+        RpcPath: user.v1.UserService/AddAddress
+      - Method: options
+        Path: /api/v1/user/address/:id
+        RpcPath: user.v1.UserService/UpdateAddress
+      - Method: put
+        Path: /api/v1/user/address/:id
+        RpcPath: user.v1.UserService/UpdateAddress
+      - Method: delete
+        Path: /api/v1/user/address/:id
+        RpcPath: user.v1.UserService/DeleteAddress
+
+  # 商品服务
+  - Name: product-service
+    Grpc:
+      Target: 127.0.0.1:8081
+      Timeout: 2000
+    Mappings:
+      - Method: options
+        Path: /api/v1/products
+        RpcPath: product.v1.ProductService/ListProducts
+      - Method: get
+        Path: /api/v1/products
+        RpcPath: product.v1.ProductService/ListProducts
+      - Method: post
+        Path: /api/v1/products
+        RpcPath: product.v1.ProductService/CreateProduct
+      - Method: options
+        Path: /api/v1/products/:id
+        RpcPath: product.v1.ProductService/GetProduct
+      - Method: get
+        Path: /api/v1/products/:id
+        RpcPath: product.v1.ProductService/GetProduct
+      - Method: put
+        Path: /api/v1/products/:id
+        RpcPath: product.v1.ProductService/UpdateProduct
+      - Method: delete
+        Path: /api/v1/products/:id
+        RpcPath: product.v1.ProductService/DeleteProduct
+      # SKU 相关路由
+      - Method: options
+        Path: /api/v1/skus
+        RpcPath: product.v1.ProductService/ListSkus
+      - Method: get
+        Path: /api/v1/skus
+        RpcPath: product.v1.ProductService/ListSkus
+      - Method: post
+        Path: /api/v1/skus
+        RpcPath: product.v1.ProductService/CreateSku
+      - Method: options
+        Path: /api/v1/skus/:id
+        RpcPath: product.v1.ProductService/GetSku
+      - Method: get
+        Path: /api/v1/skus/:id
+        RpcPath: product.v1.ProductService/GetSku
+      - Method: put
+        Path: /api/v1/skus/:id
+        RpcPath: product.v1.ProductService/UpdateSku
+      - Method: delete
+        Path: /api/v1/skus/:id
+        RpcPath: product.v1.ProductService/DeleteSku
+      - Method: options
+        Path: /api/v1/categories
+        RpcPath: product.v1.ProductService/GetCategoryList
+      - Method: get
+        Path: /api/v1/categories
+        RpcPath: product.v1.ProductService/GetCategoryList
+      - Method: post
+        Path: /api/v1/categories
+        RpcPath: product.v1.ProductService/CreateCategory
+      - Method: options
+        Path: /api/v1/categories/tree
+        RpcPath: product.v1.ProductService/GetCategoryTree
+      - Method: get
+        Path: /api/v1/categories/tree
+        RpcPath: product.v1.ProductService/GetCategoryTree
+      - Method: options
+        Path: /api/v1/categories/:id
+        RpcPath: product.v1.ProductService/GetCategory
+      - Method: get
+        Path: /api/v1/categories/:id
+        RpcPath: product.v1.ProductService/GetCategory
+      - Method: put
+        Path: /api/v1/categories/:id
+        RpcPath: product.v1.ProductService/UpdateCategory
+      - Method: delete
+        Path: /api/v1/categories/:id
+        RpcPath: product.v1.ProductService/DeleteCategory
+      # Banner 相关路由
+      - Method: options
+        Path: /api/v1/banners
+        RpcPath: product.v1.ProductService/ListBanners
+      - Method: get
+        Path: /api/v1/banners
+        RpcPath: product.v1.ProductService/ListBanners
+      - Method: options
+        Path: /api/v1/banners/:id
+        RpcPath: product.v1.ProductService/GetBanner
+      - Method: get
+        Path: /api/v1/banners/:id
+        RpcPath: product.v1.ProductService/GetBanner
+      - Method: post
+        Path: /api/v1/banners
+        RpcPath: product.v1.ProductService/CreateBanner
+      - Method: put
+        Path: /api/v1/banners/:id
+        RpcPath: product.v1.ProductService/UpdateBanner
+      - Method: delete
+        Path: /api/v1/banners/:id
+        RpcPath: product.v1.ProductService/DeleteBanner
+
+  # 秒杀服务
+  - Name: seckill-service
+    Grpc:
+      Target: 127.0.0.1:8090
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/seckill/activities
+        RpcPath: seckill.v1.SeckillService/ListSeckillActivities
+      - Method: get
+        Path: /api/v1/seckill/activities
+        RpcPath: seckill.v1.SeckillService/ListSeckillActivities
+      - Method: post
+        Path: /api/v1/seckill/activities
+        RpcPath: seckill.v1.SeckillService/CreateSeckillActivity
+      - Method: options
+        Path: /api/v1/seckill/activities/:id
+        RpcPath: seckill.v1.SeckillService/GetSeckillActivity
+      - Method: get
+        Path: /api/v1/seckill/activities/:id
+        RpcPath: seckill.v1.SeckillService/GetSeckillActivity
+      - Method: put
+        Path: /api/v1/seckill/activities/:id
+        RpcPath: seckill.v1.SeckillService/UpdateSeckillActivity
+      - Method: delete
+        Path: /api/v1/seckill/activities/:id
+        RpcPath: seckill.v1.SeckillService/DeleteSeckillActivity
+      - Method: options
+        Path: /api/v1/seckill
+        RpcPath: seckill.v1.SeckillService/Seckill
+      - Method: post
+        Path: /api/v1/seckill
+        RpcPath: seckill.v1.SeckillService/Seckill
+
+  # 订单服务
+  - Name: order-service
+    Grpc:
+      Target: 127.0.0.1:8082
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/orders
+        RpcPath: order.v1.OrderService/CreateOrder
+      - Method: post
+        Path: /api/v1/orders
+        RpcPath: order.v1.OrderService/CreateOrder
+      - Method: get
+        Path: /api/v1/orders
+        RpcPath: order.v1.OrderService/ListOrders
+      - Method: options
+        Path: /api/v1/orders/:id
+        RpcPath: order.v1.OrderService/GetOrder
+      - Method: get
+        Path: /api/v1/orders/:id
+        RpcPath: order.v1.OrderService/GetOrder
+      - Method: options
+        Path: /api/v1/orders/:id/cancel
+        RpcPath: order.v1.OrderService/CancelOrder
+      - Method: put
+        Path: /api/v1/orders/:id/cancel
+        RpcPath: order.v1.OrderService/CancelOrder
+
+  # 支付服务
+  - Name: payment-service
+    Grpc:
+      Target: 127.0.0.1:8083
+      Timeout: 5000
+    Mappings:
+      - Method: options
+        Path: /api/v1/payments
+        RpcPath: payment.v1.PaymentService/CreatePayment
+      - Method: post
+        Path: /api/v1/payments
+        RpcPath: payment.v1.PaymentService/CreatePayment
+      - Method: options
+        Path: /api/v1/payments/:payment_no
+        RpcPath: payment.v1.PaymentService/GetPayment
+      - Method: get
+        Path: /api/v1/payments/:payment_no
+        RpcPath: payment.v1.PaymentService/GetPayment
+      - Method: options
+        Path: /api/v1/payments/:payment_no/refund
+        RpcPath: payment.v1.PaymentService/Refund
+      - Method: post
+        Path: /api/v1/payments/:payment_no/refund
+        RpcPath: payment.v1.PaymentService/Refund
+
+  # 评价服务
+  - Name: review-service
+    Grpc:
+      Target: 127.0.0.1:8007
+      Timeout: 3000
+    Mappings:
+      # 创建评价
+      - Method: options
+        Path: /api/v1/reviews
+        RpcPath: review.v1.ReviewService/CreateReview
+      - Method: post
+        Path: /api/v1/reviews
+        RpcPath: review.v1.ReviewService/CreateReview
+
+      # 获取商品评价列表
+      - Method: options
+        Path: /api/v1/reviews/product/:product_id
+        RpcPath: review.v1.ReviewService/GetProductReviews
+      - Method: get
+        Path: /api/v1/reviews/product/:product_id
+        RpcPath: review.v1.ReviewService/GetProductReviews
+
+      # 获取评价详情
+      - Method: options
+        Path: /api/v1/reviews/:review_id
+        RpcPath: review.v1.ReviewService/GetReview
+      - Method: get
+        Path: /api/v1/reviews/:review_id
+        RpcPath: review.v1.ReviewService/GetReview
+
+      # 回复评价（商家/用户回复）
+      - Method: options
+        Path: /api/v1/reviews/:review_id/reply
+        RpcPath: review.v1.ReviewService/ReplyReview
+      - Method: put
+        Path: /api/v1/reviews/:review_id/reply
+        RpcPath: review.v1.ReviewService/ReplyReview
+
+      # 获取评价统计
+      - Method: options
+        Path: /api/v1/reviews/stats/:product_id
+        RpcPath: review.v1.ReviewService/GetReviewStats
+      - Method: get
+        Path: /api/v1/reviews/stats/:product_id
+        RpcPath: review.v1.ReviewService/GetReviewStats
+
+  # 库存服务
+  - Name: inventory-service
+    Grpc:
+      Target: 127.0.0.1:8084
+      Timeout: 2000
+    Mappings:
+      - Method: options
+        Path: /api/v1/inventory/:sku_id
+        RpcPath: inventory.v1.InventoryService/GetInventory
+      - Method: get
+        Path: /api/v1/inventory/:sku_id
+        RpcPath: inventory.v1.InventoryService/GetInventory
+      - Method: options
+        Path: /api/v1/inventory/deduct
+        RpcPath: inventory.v1.InventoryService/DeductStock
+      - Method: post
+        Path: /api/v1/inventory/deduct
+        RpcPath: inventory.v1.InventoryService/DeductStock
+
+  # 购物车服务
+  - Name: cart-service
+    Grpc:
+      Target: 127.0.0.1:8085
+      Timeout: 2000
+    Mappings:
+      - Method: options
+        Path: /api/v1/cart
+        RpcPath: cart.v1.CartService/GetCart
+      - Method: get
+        Path: /api/v1/cart
+        RpcPath: cart.v1.CartService/GetCart
+      - Method: post
+        Path: /api/v1/cart
+        RpcPath: cart.v1.CartService/AddItem
+      - Method: options
+        Path: /api/v1/cart/:sku_id
+        RpcPath: cart.v1.CartService/UpdateQuantity
+      - Method: put
+        Path: /api/v1/cart/:sku_id
+        RpcPath: cart.v1.CartService/UpdateQuantity
+      - Method: options
+        Path: /api/v1/cart/:sku_ids
+        RpcPath: cart.v1.CartService/RemoveItem
+      - Method: delete
+        Path: /api/v1/cart/:sku_ids
+        RpcPath: cart.v1.CartService/RemoveItem
+      - Method: delete
+        Path: /api/v1/cart
+        RpcPath: cart.v1.CartService/ClearCart
+
+  # 营销服务
+  - Name: promotion-service
+    Grpc:
+      Target: 127.0.0.1:8006
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/promotion/coupons
+        RpcPath: promotion.v1.PromotionService/GetCouponList
+      - Method: get
+        Path: /api/v1/promotion/coupons
+        RpcPath: promotion.v1.PromotionService/GetCouponList
+      - Method: options
+        Path: /api/v1/promotion/user-coupons/:user_id
+        RpcPath: promotion.v1.PromotionService/GetUserCouponList
+      - Method: get
+        Path: /api/v1/promotion/user-coupons/:user_id
+        RpcPath: promotion.v1.PromotionService/GetUserCouponList
+      - Method: options
+        Path: /api/v1/promotion/promotions
+        RpcPath: promotion.v1.PromotionService/GetPromotionList
+      - Method: get
+        Path: /api/v1/promotion/promotions
+        RpcPath: promotion.v1.PromotionService/GetPromotionList
+
+  # 文件服务
+  # 注意：文件上传路由（/api/v1/files/upload 和 /api/v1/files/batch-upload）
+  # 由主 HTTP 服务器直接处理，完全绕过 Gateway，因为 gRPC Gateway 无法处理 multipart/form-data
+  - Name: file-service
+    Grpc:
+      Target: 127.0.0.1:8012
+      Timeout: 10000
+    Mappings:
+      # 其他文件服务路由（文件上传不在 Gateway 中配置）
+      - Method: options
+        Path: /api/v1/files/:file_id
+        RpcPath: file.v1.FileService/DeleteFile
+      - Method: delete
+        Path: /api/v1/files/:file_id
+        RpcPath: file.v1.FileService/DeleteFile
+      - Method: options
+        Path: /api/v1/files/:file_id/url
+        RpcPath: file.v1.FileService/GetFileURL
+      - Method: get
+        Path: /api/v1/files/:file_id/url
+        RpcPath: file.v1.FileService/GetFileURL

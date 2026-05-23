@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package search.v1;
+
+option go_package = "api/search/v1;v1";
+
+// 搜索服务
+service SearchService {
+    // 商品搜索
+    rpc SearchProducts (SearchProductsRequest) returns (SearchProductsResponse);
+    // 搜索建议
+    rpc GetSearchSuggestions (GetSearchSuggestionsRequest) returns (GetSearchSuggestionsResponse);
+    // 搜索热词
+    rpc GetHotKeywords (GetHotKeywordsRequest) returns (GetHotKeywordsResponse);
+    // 构建商品索引
+    rpc BuildProductIndex (BuildProductIndexRequest) returns (BuildProductIndexResponse);
+}
+
+// 商品搜索结果
+message ProductSearchResult {
+    int64 product_id = 1;
+    string name = 2;
+    string main_image = 3;
+    string price = 4;
+    int32 sales = 5;
+    double score = 6;
+}
+
+// 商品搜索请求
+message SearchProductsRequest {
+    string keyword = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int64 category_id = 4;
+    string sort_by = 5; // price_asc, price_desc, sales_desc, score_desc
+}
+
+// 商品搜索响应
+message SearchProductsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated ProductSearchResult data = 3;
+    int32 total = 4;
+}
+
+// 搜索建议请求
+message GetSearchSuggestionsRequest {
+    string keyword = 1;
+    int32 limit = 2;
+}
+
+// 搜索建议响应
+message GetSearchSuggestionsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated string suggestions = 3;
+}
+
+// 搜索热词请求
+message GetHotKeywordsRequest {
+    int32 limit = 1;
+}
+
+// 搜索热词响应
+message GetHotKeywordsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated string keywords = 3;
+}
+
+// 构建商品索引请求
+message BuildProductIndexRequest {
+    repeated int64 product_ids = 1;
+}
+
+// 构建商品索引响应
+message BuildProductIndexResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+

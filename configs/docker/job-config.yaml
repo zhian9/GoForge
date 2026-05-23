@@ -1,0 +1,52 @@
+# 服务配置
+Name: job-service
+ListenOn: 0.0.0.0:8013
+Mode: dev
+
+# 超时配置
+Timeout: 5000
+
+# CPU 降载阈值
+CpuThreshold: 900
+
+# 健康检查
+Health: true
+
+# 中间件配置
+Middlewares:
+  Trace: true
+  Recover: true
+  Stat: true
+  Prometheus: true
+  Breaker: true
+
+# 日志配置
+Log:
+  ServiceName: job-service
+  Mode: console
+  Level: debug
+  Path: logs
+  Compress: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+
+# Prometheus 配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9103
+  Path: /metrics
+
+# 数据库配置
+Database:
+  Driver: mysql
+  Host: mysql
+  Port: 3306
+  User: goforge
+  Password: "${DB_PASSWORD}"
+  Database: go_forge
+  Charset: utf8mb4
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+  ConnMaxIdleTime: 600
+

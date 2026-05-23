@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package order.v1;
+
+option go_package = "api/order/v1;v1";
+
+// 订单服务
+service OrderService {
+    // 创建订单
+    rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
+    // 获取订单详情
+    rpc GetOrder (GetOrderRequest) returns (GetOrderResponse);
+    // 获取订单列表
+    rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
+    // 取消订单
+    rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse);
+    // 确认收货
+    rpc ConfirmReceive (ConfirmReceiveRequest) returns (ConfirmReceiveResponse);
+}
+
+// 订单信息
+message Order {
+    int64 id = 1;
+    string order_no = 2;
+    int64 user_id = 3;
+    int32 order_type = 4; // 1-普通订单, 2-秒杀订单, 3-拼团订单
+    int32 status = 5; // 0-已取消, 1-待支付, 2-待发货, 3-待收货, 4-已完成, 5-已退款
+    string total_amount = 6; // 订单总金额
+    string pay_amount = 7; // 实付金额
+    string discount_amount = 8; // 优惠金额
+    string freight_amount = 9; // 运费
+    string receiver_name = 10; // 收货人姓名
+    string receiver_phone = 11; // 收货人电话
+    string receiver_address = 12; // 收货地址
+    int32 payment_method = 13; // 支付方式: 1-微信, 2-支付宝, 3-银联
+    string payment_time = 14; // 支付时间
+    string delivery_time = 15; // 发货时间
+    string receive_time = 16; // 收货时间
+    string cancel_time = 17; // 取消时间
+    string cancel_reason = 18; // 取消原因
+    string remark = 19; // 订单备注
+    repeated OrderItem items = 20; // 订单商品项
+    string created_at = 21;
+    string updated_at = 22;
+}
+
+// 订单商品项
+message OrderItem {
+    int64 id = 1;
+    int64 order_id = 2;
+    string order_no = 3;
+    int64 product_id = 4;
+    string product_name = 5;
+    int64 sku_id = 6;
+    string sku_code = 7;
+    string sku_name = 8;
+    string sku_image = 9;
+    map<string, string> sku_specs = 10; // SKU规格
+    string price = 11; // 单价
+    int32 quantity = 12; // 数量
+    string total_amount = 13; // 小计金额
+    string created_at = 14;
+}
+
+// 创建订单请求
+message CreateOrderRequest {
+    int64 user_id = 1;
+    int64 address_id = 2; // 收货地址ID
+    repeated OrderItemRequest items = 3; // 订单商品项
+    int32 order_type = 4; // 订单类型: 1-普通订单, 2-秒杀订单, 3-拼团订单
+    int64 coupon_id = 5; // 优惠券ID（可选）
+    string remark = 6; // 订单备注
+    string receiver_name = 7; // 收货人姓名
+    string receiver_phone = 8; // 收货人电话
+    string receiver_address = 9; // 收货地址
+    bool clear_cart = 10; // 是否清空购物车已选商品
+}
+
+// 订单商品项请求
+message OrderItemRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    string product_name = 3;
+    string price = 4;
+}
+
+// 创建订单响应
+message CreateOrderResponse {
+    int32 code = 1;
+    string message = 2;
+    Order data = 3;
+}
+
+// 获取订单详情请求
+message GetOrderRequest {
+    int64 id = 1;
+    string order_no = 2;
+}
+
+// 获取订单详情响应
+message GetOrderResponse {
+    int32 code = 1;
+    string message = 2;
+    Order data = 3;
+}
+
+// 获取订单列表请求
+message ListOrdersRequest {
+    int64 user_id = 1;
+    int32 status = 2; // 订单状态，-1表示全部
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+// 获取订单列表响应
+message ListOrdersResponse {
+    int32 code = 1;
+    string message = 2;
+    OrderListData data = 3;
+}
+
+message OrderListData {
+    repeated Order list = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int64 total = 4;
+    int32 total_pages = 5;
+}
+
+// 取消订单请求
+message CancelOrderRequest {
+    int64 id = 1;
+    string order_no = 2;
+    string reason = 3; // 取消原因
+}
+
+// 取消订单响应
+message CancelOrderResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 确认收货请求
+message ConfirmReceiveRequest {
+    int64 id = 1;
+    string order_no = 2;
+}
+
+// 确认收货响应
+message ConfirmReceiveResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+

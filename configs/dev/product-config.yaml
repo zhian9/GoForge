@@ -1,0 +1,66 @@
+# 服务配置
+Name: product-service
+ListenOn: 0.0.0.0:8081
+Mode: dev
+
+# 超时配置
+Timeout: 5000
+
+# CPU 降载阈值
+CpuThreshold: 900
+
+# 健康检查
+Health: true
+
+# 中间件配置
+Middlewares:
+  Trace: true
+  Recover: true
+  Stat: true
+  Prometheus: true
+  Breaker: true
+
+# 日志配置
+Log:
+  ServiceName: product-service
+  Mode: console
+  Level: debug
+  Path: logs
+  Compress: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+
+# Prometheus 配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9090
+  Path: /metrics
+
+# 数据库配置
+Database:
+  Driver: mysql
+  Host: localhost
+  Port: 3306
+  User: goforge
+  Password: "123456"
+  Database: go_forge
+  Charset: utf8mb4
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+  ConnMaxIdleTime: 600
+
+# Redis配置
+BizRedis:
+  Host: localhost
+  Port: 6379
+  Password: "123456"
+  Database: 0
+  PoolSize: 10
+  MinIdleConns: 5
+
+# Kafka 配置（用于 Outbox relay 投递）
+Kafka:
+  Brokers:
+    - localhost:9092
+  Version: "2.8.0"

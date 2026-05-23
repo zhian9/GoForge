@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package review.v1;
+
+option go_package = "api/review/v1;v1";
+
+// 评价服务
+service ReviewService {
+    // 创建评价
+    rpc CreateReview (CreateReviewRequest) returns (CreateReviewResponse);
+    // 获取商品评价列表
+    rpc GetProductReviews (GetProductReviewsRequest) returns (GetProductReviewsResponse);
+    // 获取评价详情
+    rpc GetReview (GetReviewRequest) returns (GetReviewResponse);
+    // 回复评价
+    rpc ReplyReview (ReplyReviewRequest) returns (ReplyReviewResponse);
+    // 获取评价统计
+    rpc GetReviewStats (GetReviewStatsRequest) returns (GetReviewStatsResponse);
+}
+
+// 评价信息
+message Review {
+    int64 id = 1;
+    int64 user_id = 2;
+    int64 order_id = 3;
+    int64 product_id = 4;
+    int64 sku_id = 5;
+    int32 rating = 6;
+    string content = 7;
+    repeated string images = 8;
+    repeated string videos = 9;
+    int32 status = 10;
+    string reply_content = 11;
+    string created_at = 12;
+}
+
+// 创建评价请求
+message CreateReviewRequest {
+    int64 user_id = 1;
+    int64 order_id = 2;
+    int64 order_item_id = 3;
+    int64 product_id = 4;
+    int64 sku_id = 5;
+    int32 rating = 6;
+    string content = 7;
+    repeated string images = 8;
+    repeated string videos = 9;
+}
+
+// 创建评价响应
+message CreateReviewResponse {
+    int32 code = 1;
+    string message = 2;
+    Review data = 3;
+}
+
+// 获取商品评价列表请求
+message GetProductReviewsRequest {
+    int64 product_id = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int32 rating = 4; // 0-全部, 1-5星
+}
+
+// 获取商品评价列表响应
+message GetProductReviewsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Review data = 3;
+    int32 total = 4;
+}
+
+// 获取评价详情请求
+message GetReviewRequest {
+    int64 review_id = 1;
+}
+
+// 获取评价详情响应
+message GetReviewResponse {
+    int32 code = 1;
+    string message = 2;
+    Review data = 3;
+}
+
+// 回复评价请求
+message ReplyReviewRequest {
+    int64 review_id = 1;
+    int64 user_id = 2;
+    string content = 3;
+    int64 parent_id = 4; // 0表示直接回复评价
+}
+
+// 回复评价响应
+message ReplyReviewResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取评价统计请求
+message GetReviewStatsRequest {
+    int64 product_id = 1;
+}
+
+// 评价统计信息
+message ReviewStats {
+    int64 total_count = 1;
+    int64 rating_5_count = 2;
+    int64 rating_4_count = 3;
+    int64 rating_3_count = 4;
+    int64 rating_2_count = 5;
+    int64 rating_1_count = 6;
+    double average_rating = 7;
+}
+
+// 获取评价统计响应
+message GetReviewStatsResponse {
+    int32 code = 1;
+    string message = 2;
+    ReviewStats data = 3;
+}

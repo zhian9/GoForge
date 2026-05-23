@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package recommend.v1;
+
+option go_package = "api/recommend/v1;v1";
+
+// 推荐服务
+service RecommendService {
+    // 个性化推荐
+    rpc GetPersonalizedRecommend (GetPersonalizedRecommendRequest) returns (GetPersonalizedRecommendResponse);
+    // 相似商品推荐
+    rpc GetSimilarProducts (GetSimilarProductsRequest) returns (GetSimilarProductsResponse);
+    // 热门推荐
+    rpc GetHotProducts (GetHotProductsRequest) returns (GetHotProductsResponse);
+    // 实时推荐
+    rpc GetRealtimeRecommend (GetRealtimeRecommendRequest) returns (GetRealtimeRecommendResponse);
+}
+
+// 推荐商品
+message RecommendProduct {
+    int64 product_id = 1;
+    string name = 2;
+    string main_image = 3;
+    string price = 4;
+    double score = 5;
+    string reason = 6; // 推荐理由
+}
+
+// 个性化推荐请求
+message GetPersonalizedRecommendRequest {
+    int64 user_id = 1;
+    int32 limit = 2;
+}
+
+// 个性化推荐响应
+message GetPersonalizedRecommendResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated RecommendProduct data = 3;
+}
+
+// 相似商品推荐请求
+message GetSimilarProductsRequest {
+    int64 product_id = 1;
+    int32 limit = 2;
+}
+
+// 相似商品推荐响应
+message GetSimilarProductsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated RecommendProduct data = 3;
+}
+
+// 热门推荐请求
+message GetHotProductsRequest {
+    int32 limit = 1;
+    int64 category_id = 2;
+}
+
+// 热门推荐响应
+message GetHotProductsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated RecommendProduct data = 3;
+}
+
+// 实时推荐请求
+message GetRealtimeRecommendRequest {
+    int64 user_id = 1;
+    int32 limit = 2;
+}
+
+// 实时推荐响应
+message GetRealtimeRecommendResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated RecommendProduct data = 3;
+}
+
+

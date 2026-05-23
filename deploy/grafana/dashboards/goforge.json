@@ -1,0 +1,42 @@
+{
+  "title": "GoForge 微服务监控",
+  "uid": "goforge",
+  "panels": [
+    {
+      "title": "服务实例数",
+      "type": "stat",
+      "targets": [{ "expr": "count(up{job=~'.*-service'})", "legendFormat": "在线服务" }],
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "title": "API 请求速率",
+      "type": "graph",
+      "targets": [{ "expr": "rate(http_requests_total[1m])", "legendFormat": "{{method}} {{path}}" }],
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 8 }
+    },
+    {
+      "title": "Go 协程数",
+      "type": "graph",
+      "targets": [{ "expr": "go_goroutines", "legendFormat": "{{instance}}" }],
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 }
+    },
+    {
+      "title": "内存使用",
+      "type": "graph",
+      "targets": [{ "expr": "go_memstats_alloc_bytes", "legendFormat": "{{instance}}" }],
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 }
+    },
+    {
+      "title": "gRPC 请求延迟 (P99)",
+      "type": "graph",
+      "targets": [{ "expr": "histogram_quantile(0.99, rate(grpc_server_handling_seconds_bucket[1m]))", "legendFormat": "{{grpc_method}}" }],
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 }
+    },
+    {
+      "title": "gRPC 请求速率",
+      "type": "graph",
+      "targets": [{ "expr": "rate(grpc_server_started_total[1m])", "legendFormat": "{{grpc_method}}" }],
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 }
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package logistics.v1;
+
+option go_package = "api/logistics/v1;v1";
+
+// 物流服务
+service LogisticsService {
+    // 创建物流单
+    rpc CreateLogistics (CreateLogisticsRequest) returns (CreateLogisticsResponse);
+    // 获取物流信息
+    rpc GetLogistics (GetLogisticsRequest) returns (GetLogisticsResponse);
+    // 更新物流状态
+    rpc UpdateLogisticsStatus (UpdateLogisticsStatusRequest) returns (UpdateLogisticsStatusResponse);
+    // 查询物流轨迹
+    rpc QueryTracking (QueryTrackingRequest) returns (QueryTrackingResponse);
+    // 计算运费
+    rpc CalculateFreight (CalculateFreightRequest) returns (CalculateFreightResponse);
+}
+
+// 物流信息
+message Logistics {
+    int64 id = 1;
+    int64 order_id = 2;
+    string order_no = 3;
+    string logistics_no = 4;
+    string company_code = 5;
+    string company_name = 6;
+    int32 status = 7;
+    string receiver_name = 8;
+    string receiver_phone = 9;
+    string receiver_address = 10;
+    string sender_name = 11;
+    string sender_phone = 12;
+    string sender_address = 13;
+    string created_at = 14;
+    string updated_at = 15;
+}
+
+// 创建物流单请求
+message CreateLogisticsRequest {
+    int64 order_id = 1;
+    string order_no = 2;
+    string company_code = 3;
+    string receiver_name = 4;
+    string receiver_phone = 5;
+    string receiver_address = 6;
+}
+
+// 创建物流单响应
+message CreateLogisticsResponse {
+    int32 code = 1;
+    string message = 2;
+    Logistics data = 3;
+}
+
+// 获取物流信息请求
+message GetLogisticsRequest {
+    int64 order_id = 1;
+}
+
+// 获取物流信息响应
+message GetLogisticsResponse {
+    int32 code = 1;
+    string message = 2;
+    Logistics data = 3;
+}
+
+// 更新物流状态请求
+message UpdateLogisticsStatusRequest {
+    string logistics_no = 1;
+    int32 status = 2;
+    string remark = 3;
+}
+
+// 更新物流状态响应
+message UpdateLogisticsStatusResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 查询物流轨迹请求
+message QueryTrackingRequest {
+    string logistics_no = 1;
+}
+
+// 物流轨迹节点
+message TrackingNode {
+    string time = 1;
+    string status = 2;
+    string location = 3;
+    string remark = 4;
+}
+
+// 查询物流轨迹响应
+message QueryTrackingResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated TrackingNode data = 3;
+}
+
+// 计算运费请求
+message CalculateFreightRequest {
+    string province = 1;
+    string city = 2;
+    string district = 3;
+    double weight = 4;
+    double volume = 5;
+}
+
+// 计算运费响应
+message CalculateFreightResponse {
+    int32 code = 1;
+    string message = 2;
+    string freight = 3;
+}
+
+

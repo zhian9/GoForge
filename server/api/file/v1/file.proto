@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package file.v1;
+
+option go_package = "api/file/v1;v1";
+
+// 文件服务
+service FileService {
+    // 上传文件
+    rpc UploadFile (UploadFileRequest) returns (UploadFileResponse);
+    // 批量上传文件
+    rpc BatchUploadFile (BatchUploadFileRequest) returns (BatchUploadFileResponse);
+    // 删除文件
+    rpc DeleteFile (DeleteFileRequest) returns (DeleteFileResponse);
+    // 获取文件URL
+    rpc GetFileURL (GetFileURLRequest) returns (GetFileURLResponse);
+}
+
+// 文件信息
+message FileInfo {
+    string file_id = 1;
+    string file_name = 2;
+    string file_url = 3;
+    int64 file_size = 4;
+    string file_type = 5;
+    string created_at = 6;
+}
+
+// 上传文件请求
+message UploadFileRequest {
+    bytes file_data = 1;
+    string file_name = 2;
+    string file_type = 3;
+    string category = 4; // image, video, document
+}
+
+// 上传文件响应
+message UploadFileResponse {
+    int32 code = 1;
+    string message = 2;
+    FileInfo data = 3;
+}
+
+// 批量上传文件请求
+message BatchUploadFileRequest {
+    repeated bytes file_data = 1;
+    repeated string file_names = 2;
+    string category = 3;
+}
+
+// 批量上传文件响应
+message BatchUploadFileResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated FileInfo data = 3;
+}
+
+// 删除文件请求
+message DeleteFileRequest {
+    string file_id = 1;
+}
+
+// 删除文件响应
+message DeleteFileResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取文件URL请求
+message GetFileURLRequest {
+    string file_id = 1;
+}
+
+// 获取文件URL响应
+message GetFileURLResponse {
+    int32 code = 1;
+    string message = 2;
+    string file_url = 3;
+}
+
+

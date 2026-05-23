@@ -1,0 +1,71 @@
+# 服务配置
+Name: cart-service
+ListenOn: 0.0.0.0:8085
+Mode: dev
+
+# 超时配置
+Timeout: 5000
+
+# CPU 降载阈值
+CpuThreshold: 900
+
+# 健康检查
+Health: true
+
+# 中间件配置
+Middlewares:
+  Trace: true
+  Recover: true
+  Stat: true
+  Prometheus: true
+  Breaker: true
+
+# 日志配置
+Log:
+  ServiceName: cart-service
+  Mode: console
+  Level: debug
+  Path: logs
+  Compress: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+
+# Prometheus 配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9094
+  Path: /metrics
+
+# 数据库配置（用于持久化备份）
+Database:
+  Driver: mysql
+  Host: mysql
+  Port: 3306
+  User: goforge
+  Password: "${DB_PASSWORD}"
+  Database: go_forge
+  Charset: utf8mb4
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+  ConnMaxIdleTime: 600
+
+# Redis配置（主要存储）
+BizRedis:
+  Host: redis
+  Port: 6379
+  Password: "${REDIS_PASSWORD}"
+  Database: 0
+  PoolSize: 10
+  MinIdleConns: 5
+
+# JWT配置（用于从 token 中提取 user_id）
+JWT:
+  Secret: "${JWT_SECRET}"
+  Expire: 7200
+
+# 商品服务 gRPC 客户端（用于查询 SKU 价格）
+ProductRpc:
+  Target: product-service:8081
+  Timeout: 2000
+

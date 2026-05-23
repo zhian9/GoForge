@@ -1,0 +1,452 @@
+package seckill
+
+import (
+	"context"
+	v1 "github.com/zhian9/GoForge/server/api/seckill/v1"
+	"github.com/zhian9/GoForge/server/internal/pkg/cache"
+	"github.com/zhian9/GoForge/server/internal/pkg/mq"
+	"github.com/zhian9/GoForge/server/internal/service/seckill/model"
+	"github.com/zhian9/GoForge/server/internal/service/seckill/repository"
+	"fmt"
+	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"math"
+	"strconv"
+	"time"
+)
+
+// Seckill 秒杀下单
+func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*v1.SeckillResponse, error) {
+	//1.参数验证
+	if req.UserId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "用户ID不能为空")
+	}
+	if req.SkuId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "SKU ID 不能为空")
+	}
+	quantity := req.Quantity
+	if quantity <= 0 {
+		quantity = 1
+	}
+
+	//校验
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化(数据库未连接)")
+	}
+	now := time.Now().Unix()
+	_, err := s.svcCtx.SeckillActivityRepo.GetActiveBySkuID(ctx, uint64(req.SkuId), now)
+	if err != nil {
+		//没有活动 /未开始 /已结束
+		return &v1.SeckillResponse{
+			Code:    1,
+			Message: "不在活动时间内",
+			Data: &v1.SeckillData{
+				Success: false,
+				Message: "该商品当前不在秒杀活动时间内",
+			},
+		}, nil
+	}
+
+	//Redis Lua 脚本执行：防超卖 + 防重复
+	stockKey := fmt.Sprintf("seckill:stock:%d", req.SkuId)
+	userKey := fmt.Sprintf("seckill:user:%d:%d", req.SkuId, req.UserId)
+
+	result, err := cache.ExecuteLuaScript(ctx, s.svcCtx.Redis, cache.LuaScriptSeckill, []string{stockKey, userKey})
+	if err != nil {
+		logx.Errorf("执行秒杀Lua脚本失败: %v", err)
+		return nil, status.Error(codes.Internal, "秒杀失败，请稍后重试")
+	}
+
+	//解析结果
+	code, ok := result.(int64)
+	if !ok {
+		logx.Errorf("Lua脚本返回结果类型错误: %v", result)
+		return nil, status.Error(codes.Internal, "秒杀失败，请稍后重试")
+	}
+
+	//处理结果
+	switch code {
+	case -1:
+		//库存不足
+		return &v1.SeckillResponse{
+			Code:    1,
+			Message: "已抢光",
+			Data: &v1.SeckillData{
+				Success: false,
+				Message: "商品已抢光，请关注下次活动",
+			},
+		}, nil
+	case -2:
+		//重复抢购
+		return &v1.SeckillResponse{
+			Code:    1,
+			Message: "不可重复抢购",
+			Data: &v1.SeckillData{
+				Success: false,
+				Message: "您已参加过本次秒杀活动",
+			},
+		}, nil
+	case 1:
+		//成功 :发送kafka消息
+		seckillMsg := map[string]interface{}{
+			"user_id":   req.UserId,
+			"sku_id":    req.SkuId,
+			"quantity":  req.Quantity,
+			"timestamp": time.Now().Unix(),
+		}
+
+		message := mq.NewMessage("seckill.order", seckillMsg)
+
+		//使用 sku_id 作为分区key 保证同一SKU的消息有序
+		partitionKey := strconv.FormatInt(req.SkuId, 10)
+		if err := s.svcCtx.MQProducer.PublishWithKey(ctx, mq.TopicSeckillOrder, partitionKey, message); err != nil {
+			logx.Errorf("发送秒杀消息到kafka失败: %v", err)
+			return nil, status.Error(codes.Internal, "秒杀失败, 请稍后重试")
+		}
+
+		logx.Infof("秒杀成功： user_id=%d, sku_id=%d, quantity=%d", req.UserId, req.SkuId, quantity)
+
+		return &v1.SeckillResponse{
+			Code:    0,
+			Message: "抢购成功",
+			Data: &v1.SeckillData{
+				Success: true,
+				Message: "抢购成功，订单正在处理中...",
+			},
+		}, nil
+	default:
+		logx.Errorf("未知的Lua脚本返回码: %v", code)
+		return nil, status.Error(codes.Internal, "秒杀失败，请稍后重试")
+	}
+}
+
+// ListSeckillActivities 获取秒杀活动列表
+func (s *SeckillService) ListSeckillActivities(ctx context.Context, req *v1.ListSeckillActivitiesRequest) (*v1.ListSeckillActivitiesResponse, error) {
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化（数据库未连接）")
+	}
+
+	page := int(req.Page)
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := int(req.PageSize)
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	now := time.Now().Unix()
+
+	rows, total, err := s.svcCtx.SeckillActivityRepo.List(ctx, &repository.ListSeckillActivitiesRequest{
+		Page:            page,
+		PageSize:        pageSize,
+		Status:          req.Status,
+		Now:             now,
+		IncludeDisabled: req.IncludeDisabled,
+	})
+	if err != nil {
+		logx.Errorf("查询秒杀活动列表失败: %v", err)
+		return nil, status.Error(codes.Internal, "查询秒杀活动失败")
+	}
+
+	list := make([]*v1.SeckillActivity, 0, len(rows))
+	for _, r := range rows {
+		actStatus := calcActivityStatus(r.StartTime, r.EndTime, now)
+
+		// 读取 Redis 库存（可选）：用于展示 sold
+		//原库存
+		stockInit := int64(r.Stock)
+		//当前库存
+		currentStock := stockInit
+		if s.svcCtx.Redis != nil && stockInit > 0 {
+			key := fmt.Sprintf("seckill:stock:%d", r.SkuID)
+			if v, e := s.svcCtx.Redis.Get(ctx, key).Int64(); e == nil {
+				currentStock = v
+			}
+		}
+		//售出
+		sold := stockInit - currentStock
+		if sold < 0 {
+			sold = 0
+		}
+		if sold > stockInit {
+			sold = stockInit
+		}
+
+		//原价
+		original := r.SkuPrice
+		// 价格字符串对齐 proto
+		list = append(list, &v1.SeckillActivity{
+			Id:            int64(r.ID),
+			Name:          r.Name,
+			SkuId:         int64(r.SkuID),
+			SkuName:       r.SkuName,
+			SkuImage:      r.SkuImage,
+			SeckillPrice:  fmt.Sprintf("%.2f", r.SeckillPrice),
+			OriginalPrice: fmt.Sprintf("%.2f", original),
+			Stock:         int32(r.Stock),
+			Sold:          int32(sold),
+			StartTime:     r.StartTime,
+			EndTime:       r.EndTime,
+			Status:        actStatus,
+			EnableStatus:  int32(r.Status),
+		})
+	}
+
+	totalPages := int32(0)
+	if pageSize > 0 {
+		totalPages = int32(math.Ceil(float64(total) / float64(pageSize)))
+	}
+
+	return &v1.ListSeckillActivitiesResponse{
+		Code:    0,
+		Message: "成功",
+		Data: &v1.SeckillActivityListData{
+			List:       list,
+			Page:       int32(page),
+			PageSize:   int32(pageSize),
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetSeckillActivity 获取秒杀活动详情
+func (s *SeckillService) GetSeckillActivity(ctx context.Context, req *v1.GetSeckillActivityRequest) (*v1.GetSeckillActivityResponse, error) {
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化（数据库未连接）")
+	}
+	if req.Id <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "活动ID不能为空")
+	}
+
+	row, err := s.svcCtx.SeckillActivityRepo.GetByID(ctx, uint64(req.Id))
+	if err != nil {
+		return &v1.GetSeckillActivityResponse{
+			Code:    0,
+			Message: "成功",
+			Data:    nil,
+		}, nil
+	}
+	now := time.Now().Unix()
+	//计算活动状态
+	actStatus := calcActivityStatus(row.StartTime, row.EndTime, now)
+
+	stockInit := int64(row.Stock)
+	currentStock := stockInit
+	if s.svcCtx.Redis != nil && stockInit > 0 {
+		key := fmt.Sprintf("seckill:stock:%d", row.SkuID)
+		if v, e := s.svcCtx.Redis.Get(ctx, key).Int64(); e == nil {
+			currentStock = v
+		}
+	}
+	sold := stockInit - currentStock
+	if sold < 0 {
+		sold = 0
+	}
+	if sold > stockInit {
+		sold = stockInit
+	}
+
+	return &v1.GetSeckillActivityResponse{
+		Code:    0,
+		Message: "成功",
+		Data: &v1.SeckillActivity{
+			Id:            int64(row.ID),
+			Name:          row.Name,
+			SkuId:         int64(row.SkuID),
+			SkuName:       row.SkuName,
+			SkuImage:      row.SkuImage,
+			SeckillPrice:  fmt.Sprintf("%.2f", row.SeckillPrice),
+			OriginalPrice: fmt.Sprintf("%.2f", row.SkuPrice),
+			Stock:         int32(row.Stock),
+			Sold:          int32(sold),
+			StartTime:     row.StartTime,
+			EndTime:       row.EndTime,
+			Status:        actStatus,
+			EnableStatus:  int32(row.Status),
+		},
+	}, nil
+}
+
+// CreateSeckillActivity 创建秒杀活动（管理后台）
+func (s *SeckillService) CreateSeckillActivity(ctx context.Context, req *v1.CreateSeckillActivityRequest) (*v1.CreateSeckillActivityResponse, error) {
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化（数据库未连接）")
+	}
+	if req.SkuId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "SKU ID不能为空")
+	}
+	if req.SeckillPrice == "" {
+		return nil, status.Error(codes.InvalidArgument, "秒杀价不能为空")
+	}
+	if req.StartTime <= 0 || req.EndTime <= 0 || req.EndTime <= req.StartTime {
+		return nil, status.Error(codes.InvalidArgument, "活动时间不合法")
+	}
+
+	price, err := strconv.ParseFloat(req.SeckillPrice, 64)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "秒杀价格式不合法")
+	}
+
+	enable := int8(req.EnableStatus)
+	if enable != 0 && enable != 1 {
+		enable = 1
+	}
+
+	act := &model.SeckillActivity{
+		Name:         req.Name,
+		SkuID:        uint64(req.SkuId),
+		SeckillPrice: price,
+		Stock:        int(req.Stock),
+		StartTime:    req.StartTime,
+		EndTime:      req.EndTime,
+		Status:       enable,
+	}
+	if err := s.svcCtx.SeckillActivityRepo.Create(ctx, act); err != nil {
+		logx.Errorf("创建秒杀活动失败: %v", err)
+		return nil, status.Error(codes.Internal, "创建秒杀活动失败")
+	}
+
+	// 初始化 Redis 秒杀库存
+	if s.svcCtx.Redis != nil && act.Stock > 0 {
+		key := fmt.Sprintf("seckill:stock:%d", act.SkuID)
+		_ = s.svcCtx.Redis.Set(ctx, key, act.Stock, 0).Err()
+	}
+
+	row, _ := s.svcCtx.SeckillActivityRepo.GetByID(ctx, act.ID)
+	if row == nil {
+		// 兜底返回
+		return &v1.CreateSeckillActivityResponse{Code: 0, Message: "成功"}, nil
+	}
+	now := time.Now().Unix()
+	actStatus := calcActivityStatus(row.StartTime, row.EndTime, now)
+	return &v1.CreateSeckillActivityResponse{
+		Code:    0,
+		Message: "成功",
+		Data: &v1.SeckillActivity{
+			Id:            int64(row.ID),
+			Name:          row.Name,
+			SkuId:         int64(row.SkuID),
+			SkuName:       row.SkuName,
+			SkuImage:      row.SkuImage,
+			SeckillPrice:  fmt.Sprintf("%.2f", row.SeckillPrice),
+			OriginalPrice: fmt.Sprintf("%.2f", row.SkuPrice),
+			Stock:         int32(row.Stock),
+			Sold:          0,
+			StartTime:     row.StartTime,
+			EndTime:       row.EndTime,
+			Status:        actStatus,
+			EnableStatus:  int32(row.Status),
+		},
+	}, nil
+}
+
+// UpdateSeckillActivity 更新秒杀活动（管理后台）
+func (s *SeckillService) UpdateSeckillActivity(ctx context.Context, req *v1.UpdateSeckillActivityRequest) (*v1.UpdateSeckillActivityResponse, error) {
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化（数据库未连接）")
+	}
+	if req.Id <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "活动ID不能为空")
+	}
+	if req.SkuId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "SKU ID不能为空")
+	}
+	if req.SeckillPrice == "" {
+		return nil, status.Error(codes.InvalidArgument, "秒杀价不能为空")
+	}
+	if req.StartTime <= 0 || req.EndTime <= 0 || req.EndTime <= req.StartTime {
+		return nil, status.Error(codes.InvalidArgument, "活动时间不合法")
+	}
+
+	price, err := strconv.ParseFloat(req.SeckillPrice, 64)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "秒杀价格式不合法")
+	}
+
+	enable := int8(req.EnableStatus)
+	if enable != 0 && enable != 1 {
+		enable = 1
+	}
+
+	updates := map[string]any{
+		"name":          req.Name,
+		"sku_id":        req.SkuId,
+		"seckill_price": price,
+		"stock":         req.Stock,
+		"start_time":    req.StartTime,
+		"end_time":      req.EndTime,
+		"status":        enable,
+	}
+	if err := s.svcCtx.SeckillActivityRepo.Update(ctx, uint64(req.Id), updates); err != nil {
+		logx.Errorf("更新秒杀活动失败: %v", err)
+		return nil, status.Error(codes.Internal, "更新秒杀活动失败")
+	}
+
+	//（可选）重置 Redis 秒杀库存为配置库存
+	if s.svcCtx.Redis != nil && req.Stock > 0 {
+		key := fmt.Sprintf("seckill:stock:%d", req.SkuId)
+		_ = s.svcCtx.Redis.Set(ctx, key, req.Stock, 0).Err()
+	}
+
+	row, _ := s.svcCtx.SeckillActivityRepo.GetByID(ctx, uint64(req.Id))
+	if row == nil {
+		return &v1.UpdateSeckillActivityResponse{Code: 0, Message: "成功"}, nil
+	}
+	now := time.Now().Unix()
+	actStatus := calcActivityStatus(row.StartTime, row.EndTime, now)
+	return &v1.UpdateSeckillActivityResponse{
+		Code:    0,
+		Message: "成功",
+		Data: &v1.SeckillActivity{
+			Id:            int64(row.ID),
+			Name:          row.Name,
+			SkuId:         int64(row.SkuID),
+			SkuName:       row.SkuName,
+			SkuImage:      row.SkuImage,
+			SeckillPrice:  fmt.Sprintf("%.2f", row.SeckillPrice),
+			OriginalPrice: fmt.Sprintf("%.2f", row.SkuPrice),
+			Stock:         int32(row.Stock),
+			Sold:          0,
+			StartTime:     row.StartTime,
+			EndTime:       row.EndTime,
+			Status:        actStatus,
+			EnableStatus:  int32(row.Status),
+		},
+	}, nil
+}
+
+// DeleteSeckillActivity 删除秒杀活动（管理后台）
+func (s *SeckillService) DeleteSeckillActivity(ctx context.Context, req *v1.DeleteSeckillActivityRequest) (*v1.DeleteSeckillActivityResponse, error) {
+	if s.svcCtx.SeckillActivityRepo == nil {
+		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化（数据库未连接）")
+	}
+	if req.Id <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "活动ID不能为空")
+	}
+	if err := s.svcCtx.SeckillActivityRepo.Delete(ctx, uint64(req.Id)); err != nil {
+		logx.Errorf("删除秒杀活动失败: %v", err)
+		return nil, status.Error(codes.Internal, "删除秒杀活动失败")
+	}
+	return &v1.DeleteSeckillActivityResponse{Code: 0, Message: "成功"}, nil
+}
+
+// calcActivityStatus 计算活动状态
+func calcActivityStatus(start, end, now int64) int32 {
+	if start > 0 && now < start {
+		return 0
+	}
+	if end > 0 && now > end {
+		return 2
+	}
+	return 1
+}
+
+// convertError 转换业务错误为 gRPC 错误
+func convertError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return status.Error(codes.Internal, err.Error())
+}

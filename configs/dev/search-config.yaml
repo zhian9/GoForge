@@ -1,0 +1,75 @@
+# 服务配置
+Name: search-service
+ListenOn: 0.0.0.0:8010
+Mode: dev
+
+# 超时配置
+Timeout: 5000
+
+# CPU 降载阈值
+CpuThreshold: 900
+
+# 健康检查
+Health: true
+
+# 中间件配置
+Middlewares:
+  Trace: true
+  Recover: true
+  Stat: true
+  Prometheus: true
+  Breaker: true
+
+# 日志配置
+Log:
+  ServiceName: search-service
+  Mode: console
+  Level: debug
+  Path: logs
+  Compress: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+
+# Prometheus 配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9100
+  Path: /metrics
+
+# Elasticsearch配置
+Elasticsearch:
+  Addresses:
+    - http://localhost:9200
+  Username: ""
+  Password: "123456"
+
+# Redis配置（用于缓存）
+BizRedis:
+  Host: localhost
+  Port: 6379
+  Password: "123456"
+  Database: 6
+  PoolSize: 10
+  MinIdleConns: 5
+
+# 数据库配置（读取商品/SKU 快照写 ES）
+Database:
+  Driver: mysql
+  Host: localhost
+  Port: 3306
+  User: goforge
+  Password: "123456"
+  Database: go_forge
+  Charset: utf8mb4
+  MaxOpenConns: 50
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+  ConnMaxIdleTime: 600
+
+# Kafka 配置（消费 Outbox relay 投递的消息）
+Kafka:
+  Brokers:
+    - 127.0.0.1:9092
+  Version: "2.8.0"
+  ConsumerGroup: "search-service"
+

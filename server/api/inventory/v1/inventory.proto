@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package inventory.v1;
+
+option go_package = "api/inventory/v1;v1";
+
+// 库存服务
+service InventoryService {
+    // 获取库存
+    rpc GetInventory (GetInventoryRequest) returns (GetInventoryResponse);
+    // 批量获取库存
+    rpc BatchGetInventory (BatchGetInventoryRequest) returns (BatchGetInventoryResponse);
+    // 锁定库存（预占）
+    rpc LockStock (LockStockRequest) returns (LockStockResponse);
+    // 扣减库存
+    rpc DeductStock (DeductStockRequest) returns (DeductStockResponse);
+    // 解锁库存
+    rpc UnlockStock (UnlockStockRequest) returns (UnlockStockResponse);
+    // 回退库存
+    rpc RollbackStock (RollbackStockRequest) returns (RollbackStockResponse);
+    // 入库
+    rpc StockIn (StockInRequest) returns (StockInResponse);
+    // 获取库存流水
+    rpc GetInventoryLog (GetInventoryLogRequest) returns (GetInventoryLogResponse);
+}
+
+// 库存信息
+message Inventory {
+    int64 id = 1;
+    int64 sku_id = 2;
+    int32 total_stock = 3;
+    int32 available_stock = 4;
+    int32 locked_stock = 5;
+    int32 sold_stock = 6;
+    int32 low_stock_threshold = 7;
+    string created_at = 8;
+    string updated_at = 9;
+}
+
+// 获取库存请求
+message GetInventoryRequest {
+    int64 sku_id = 1;
+}
+
+// 获取库存响应
+message GetInventoryResponse {
+    int32 code = 1;
+    string message = 2;
+    Inventory data = 3;
+}
+
+// 批量获取库存请求
+message BatchGetInventoryRequest {
+    repeated int64 sku_ids = 1;
+}
+
+// 批量获取库存响应
+message BatchGetInventoryResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Inventory data = 3;
+}
+
+// 锁定库存请求
+message LockStockRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    int64 order_id = 3;
+    string remark = 4;
+}
+
+// 锁定库存响应
+message LockStockResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 扣减库存请求
+message DeductStockRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    int64 order_id = 3;
+    string remark = 4;
+}
+
+// 扣减库存响应
+message DeductStockResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 解锁库存请求
+message UnlockStockRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    int64 order_id = 3;
+    string remark = 4;
+}
+
+// 解锁库存响应
+message UnlockStockResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 回退库存请求
+message RollbackStockRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    int64 order_id = 3;
+    string remark = 4;
+}
+
+// 回退库存响应
+message RollbackStockResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 入库请求
+message StockInRequest {
+    int64 sku_id = 1;
+    int32 quantity = 2;
+    string remark = 3;
+}
+
+// 入库响应
+message StockInResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取库存流水请求
+message GetInventoryLogRequest {
+    int64 sku_id = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+// 库存流水信息
+message InventoryLog {
+    int64 id = 1;
+    int64 sku_id = 2;
+    int64 order_id = 3;
+    int32 type = 4;
+    int32 quantity = 5;
+    int32 before_stock = 6;
+    int32 after_stock = 7;
+    string remark = 8;
+    string created_at = 9;
+}
+
+// 获取库存流水响应
+message GetInventoryLogResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated InventoryLog data = 3;
+    int32 total = 4;
+}
+
+

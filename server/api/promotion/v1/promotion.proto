@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package promotion.v1;
+
+option go_package = "api/promotion/v1;v1";
+
+// 营销服务
+service PromotionService {
+    // 获取优惠券列表
+    rpc GetCouponList (GetCouponListRequest) returns (GetCouponListResponse);
+    // 领取优惠券
+    rpc ReceiveCoupon (ReceiveCouponRequest) returns (ReceiveCouponResponse);
+    // 获取用户优惠券列表
+    rpc GetUserCouponList (GetUserCouponListRequest) returns (GetUserCouponListResponse);
+    // 使用优惠券
+    rpc UseCoupon (UseCouponRequest) returns (UseCouponResponse);
+    // 获取促销活动列表
+    rpc GetPromotionList (GetPromotionListRequest) returns (GetPromotionListResponse);
+    // 计算优惠金额
+    rpc CalculateDiscount (CalculateDiscountRequest) returns (CalculateDiscountResponse);
+    // 获取用户积分
+    rpc GetUserPoints (GetUserPointsRequest) returns (GetUserPointsResponse);
+    // 积分兑换
+    rpc ExchangePoints (ExchangePointsRequest) returns (ExchangePointsResponse);
+}
+
+// 优惠券信息
+message Coupon {
+    int64 id = 1;
+    string name = 2;
+    int32 type = 3;
+    int32 discount_type = 4;
+    string discount_value = 5;
+    string min_amount = 6;
+    string max_discount = 7;
+    string valid_start_time = 8;
+    string valid_end_time = 9;
+    int32 status = 10;
+}
+
+// 用户优惠券信息
+message UserCoupon {
+    int64 id = 1;
+    int64 user_id = 2;
+    int64 coupon_id = 3;
+    int32 status = 4;
+    int64 order_id = 5;
+    string expire_at = 6;
+    string created_at = 7;
+}
+
+// 促销活动信息
+message Promotion {
+    int64 id = 1;
+    string name = 2;
+    int32 type = 3;
+    string rule = 4;
+    repeated int64 product_ids = 5;
+    repeated int64 category_ids = 6;
+    string start_time = 7;
+    string end_time = 8;
+    int32 status = 9;
+}
+
+// 获取优惠券列表请求
+message GetCouponListRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+}
+
+// 获取优惠券列表响应
+message GetCouponListResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Coupon data = 3;
+    int32 total = 4;
+}
+
+// 领取优惠券请求
+message ReceiveCouponRequest {
+    int64 user_id = 1;
+    int64 coupon_id = 2;
+}
+
+// 领取优惠券响应
+message ReceiveCouponResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取用户优惠券列表请求
+message GetUserCouponListRequest {
+    int64 user_id = 1;
+    int32 status = 2; // 0-未使用, 1-已使用, 2-已过期
+}
+
+// 获取用户优惠券列表响应
+message GetUserCouponListResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated UserCoupon data = 3;
+}
+
+// 使用优惠券请求
+message UseCouponRequest {
+    int64 user_id = 1;
+    int64 user_coupon_id = 2;
+    int64 order_id = 3;
+}
+
+// 使用优惠券响应
+message UseCouponResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取促销活动列表请求
+message GetPromotionListRequest {
+    int64 product_id = 1;
+    int64 category_id = 2;
+}
+
+// 获取促销活动列表响应
+message GetPromotionListResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Promotion data = 3;
+}
+
+// 计算优惠金额请求
+message CalculateDiscountRequest {
+    int64 user_id = 1;
+    repeated int64 product_ids = 2;
+    repeated int32 quantities = 3;
+    int64 coupon_id = 4;
+    string total_amount = 5;
+}
+
+// 计算优惠金额响应
+message CalculateDiscountResponse {
+    int32 code = 1;
+    string message = 2;
+    string discount_amount = 3;
+    string final_amount = 4;
+}
+
+// 获取用户积分请求
+message GetUserPointsRequest {
+    int64 user_id = 1;
+}
+
+// 获取用户积分响应
+message GetUserPointsResponse {
+    int32 code = 1;
+    string message = 2;
+    int64 points = 3;
+}
+
+// 积分兑换请求
+message ExchangePointsRequest {
+    int64 user_id = 1;
+    int64 points = 2;
+}
+
+// 积分兑换响应
+message ExchangePointsResponse {
+    int32 code = 1;
+    string message = 2;
+}

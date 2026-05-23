@@ -1,0 +1,487 @@
+syntax = "proto3";
+
+package product.v1;
+
+option go_package = "api/product/v1;v1";
+
+// 商品服务
+service ProductService {
+    // 获取商品详情
+    rpc GetProduct (GetProductRequest) returns (GetProductResponse);
+    // 获取商品列表
+    rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
+    // 创建商品（管理后台）
+    rpc CreateProduct (CreateProductRequest) returns (CreateProductResponse);
+    // 更新商品（管理后台）
+    rpc UpdateProduct (UpdateProductRequest) returns (UpdateProductResponse);
+    // 删除商品（管理后台）
+    rpc DeleteProduct (DeleteProductRequest) returns (DeleteProductResponse);
+    // 获取SKU详情
+    rpc GetSku (GetSkuRequest) returns (GetSkuResponse);
+    // 获取SKU列表（管理后台）
+    rpc ListSkus (ListSkusRequest) returns (ListSkusResponse);
+    // 创建SKU（管理后台）
+    rpc CreateSku (CreateSkuRequest) returns (CreateSkuResponse);
+    // 更新SKU（管理后台）
+    rpc UpdateSku (UpdateSkuRequest) returns (UpdateSkuResponse);
+    // 删除SKU（管理后台）
+    rpc DeleteSku (DeleteSkuRequest) returns (DeleteSkuResponse);
+    // 获取类目列表
+    rpc GetCategoryList (GetCategoryListRequest) returns (GetCategoryListResponse);
+    // 获取类目树
+    rpc GetCategoryTree (GetCategoryTreeRequest) returns (GetCategoryTreeResponse);
+    // 创建类目（管理后台）
+    rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);
+    // 更新类目（管理后台）
+    rpc UpdateCategory (UpdateCategoryRequest) returns (UpdateCategoryResponse);
+    // 删除类目（管理后台）
+    rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryResponse);
+    // 获取类目详情
+    rpc GetCategory (GetCategoryRequest) returns (GetCategoryResponse);
+    // 获取Banner列表
+    rpc ListBanners (ListBannersRequest) returns (ListBannersResponse);
+    // 获取Banner详情
+    rpc GetBanner (GetBannerRequest) returns (GetBannerResponse);
+    // 创建Banner（管理后台）
+    rpc CreateBanner (CreateBannerRequest) returns (CreateBannerResponse);
+    // 更新Banner（管理后台）
+    rpc UpdateBanner (UpdateBannerRequest) returns (UpdateBannerResponse);
+    // 删除Banner（管理后台）
+    rpc DeleteBanner (DeleteBannerRequest) returns (DeleteBannerResponse);
+}
+
+// 商品信息
+message Product {
+    int64 id = 1;
+    string spu_code = 2;
+    string name = 3;
+    string subtitle = 4;   //子标题
+    int64 category_id = 5;  //分类id
+    int64 brand_id = 6;
+    string main_image = 7; // 主图URL
+    string local_main_image = 8; // 本地主图路径
+    repeated string images = 9; // 图片URL列表
+    repeated string local_images = 10; // 本地图片路径列表
+    string detail = 11;  //详情
+    double price = 12;  //价格
+    double original_price = 13; //原价
+    int32 stock = 14; //库存
+    int32 sales = 15; //销售量
+    int32 status = 16; //状态
+    int32 is_hot = 17; // 是否热门: 0-否, 1-是
+    string created_at = 18;
+    string updated_at = 19;
+}
+
+// SKU信息
+message Sku {
+    int64 id = 1;
+    int64 product_id = 2;
+    string sku_code = 3;
+    string name = 4;
+    map<string, string> specs = 5; // 规格属性
+    double price = 6;
+    double original_price = 7;
+    int32 stock = 8;
+    string image = 9;
+    double weight = 10;
+    double volume = 11;
+    int32 status = 12;
+}
+
+// 类目信息
+message Category {
+    int64 id = 1;
+    int64 parent_id = 2;
+    string name = 3;
+    int32 level = 4;
+    int32 sort = 5;
+    string icon = 6; // 图标URL
+    string icon_local = 7; // 本地图标路径
+    string image = 8; // 图片URL
+    string image_local = 9; // 本地图片路径
+    string description = 10; // 类目描述
+    int32 status = 11;
+    repeated Category children = 12; // 子类目
+}
+
+// 获取商品详情请求
+message GetProductRequest {
+    int64 id = 1;
+    string spu_code = 2;
+}
+
+// 获取商品详情响应
+message GetProductResponse {
+    int32 code = 1;
+    string message = 2;
+    Product data = 3;
+}
+
+// 获取商品列表请求
+message ListProductsRequest {
+    int64 category_id = 1;
+    int64 brand_id = 2;
+    string keyword = 3;
+    int32 status = 4;
+    int32 page = 5;
+    int32 page_size = 6;
+    string sort = 7; // price_asc, price_desc, sales_desc, created_desc
+    int32 is_hot = 8; // 是否热门: -1-全部, 0-否, 1-是
+}
+
+// 获取商品列表响应
+message ListProductsResponse {
+    int32 code = 1;
+    string message = 2;
+    ProductListData data = 3;
+}
+
+message ProductListData {
+    repeated Product list = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int64 total = 4;
+    int32 total_pages = 5;
+}
+
+// 获取SKU详情请求
+message GetSkuRequest {
+    int64 id = 1;
+    string sku_code = 2;
+}
+
+// 获取SKU详情响应
+message GetSkuResponse {
+    int32 code = 1;
+    string message = 2;
+    Sku data = 3;
+}
+
+// 获取SKU列表请求（管理后台）
+message ListSkusRequest {
+    int64 product_id = 1; // 商品ID，0表示查询所有
+    int32 status = 2; // 状态: -1-全部, 0-下架, 1-上架
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+// 获取SKU列表响应
+message ListSkusResponse {
+    int32 code = 1;
+    string message = 2;
+    SkuListData data = 3;
+}
+
+message SkuListData {
+    repeated Sku list = 1;
+    int32 page = 2;
+    int32 page_size = 3;
+    int64 total = 4;
+    int32 total_pages = 5;
+}
+
+// 创建SKU请求（管理后台）
+message CreateSkuRequest {
+    int64 product_id = 1; // 商品ID（必填）
+    string sku_code = 2; // SKU编码（必填）
+    string name = 3; // SKU名称（必填）
+    map<string, string> specs = 4; // 规格属性（必填）
+    double price = 5; // 价格（必填）
+    double original_price = 6; // 原价
+    int32 stock = 7; // 库存
+    string image = 8; // SKU图片
+    double weight = 9; // 重量(kg)
+    double volume = 10; // 体积(立方米)
+    int32 status = 11; // 状态: 0-下架, 1-上架
+}
+
+// 创建SKU响应
+message CreateSkuResponse {
+    int32 code = 1;
+    string message = 2;
+    Sku data = 3;
+}
+
+// 更新SKU请求（管理后台）
+message UpdateSkuRequest {
+    int64 id = 1; // SKU ID（必填）
+    string sku_code = 2; // SKU编码
+    string name = 3; // SKU名称
+    map<string, string> specs = 4; // 规格属性
+    double price = 5; // 价格
+    double original_price = 6; // 原价
+    int32 stock = 7; // 库存
+    string image = 8; // SKU图片
+    double weight = 9; // 重量(kg)
+    double volume = 10; // 体积(立方米)
+    int32 status = 11; // 状态: 0-下架, 1-上架
+}
+
+// 更新SKU响应
+message UpdateSkuResponse {
+    int32 code = 1;
+    string message = 2;
+    Sku data = 3;
+}
+
+// 删除SKU请求（管理后台）
+message DeleteSkuRequest {
+    int64 id = 1; // SKU ID（必填）
+}
+
+// 删除SKU响应
+message DeleteSkuResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取类目列表请求
+message GetCategoryListRequest {
+    int64 parent_id = 1;
+    int32 level = 2;
+    int32 status = 3;
+}
+
+// 获取类目列表响应
+message GetCategoryListResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Category data = 3;
+}
+
+// 获取类目树请求
+message GetCategoryTreeRequest {
+    int32 status = 1;
+}
+
+// 获取类目树响应
+message GetCategoryTreeResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Category data = 3;
+}
+
+// 创建商品请求（管理后台）
+message CreateProductRequest {
+    string name = 1;
+    string subtitle = 2;
+    int64 category_id = 3;
+    int64 brand_id = 4;
+    string main_image = 5; // 主图URL
+    string local_main_image = 6; // 本地主图路径
+    repeated string images = 7; // 图片URL列表
+    repeated string local_images = 8; // 本地图片路径列表
+    string detail = 9;
+    double price = 10;
+    double original_price = 11;
+    int32 stock = 12;
+    int32 status = 13;
+    int32 is_hot = 14; // 是否热门: 0-否, 1-是
+}
+
+// 创建商品响应
+message CreateProductResponse {
+    int32 code = 1;
+    string message = 2;
+    Product data = 3;
+}
+
+// 更新商品请求（管理后台）
+message UpdateProductRequest {
+    int64 id = 1;
+    string name = 2;
+    string subtitle = 3;
+    int64 category_id = 4;
+    int64 brand_id = 5;
+    string main_image = 6; // 主图URL
+    string local_main_image = 7; // 本地主图路径
+    repeated string images = 8; // 图片URL列表
+    repeated string local_images = 9; // 本地图片路径列表
+    string detail = 10;
+    double price = 11;
+    double original_price = 12;
+    int32 stock = 13;
+    int32 status = 14;
+    int32 is_hot = 15; // 是否热门: 0-否, 1-是
+}
+
+// 更新商品响应
+message UpdateProductResponse {
+    int32 code = 1;
+    string message = 2;
+    Product data = 3;
+}
+
+// 删除商品请求（管理后台）
+message DeleteProductRequest {
+    int64 id = 1;
+}
+
+// 删除商品响应
+message DeleteProductResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 获取类目详情请求
+message GetCategoryRequest {
+    int64 id = 1;
+}
+
+// 获取类目详情响应
+message GetCategoryResponse {
+    int32 code = 1;
+    string message = 2;
+    Category data = 3;
+}
+
+// 创建类目请求（管理后台）
+message CreateCategoryRequest {
+    int64 parent_id = 1;
+    string name = 2;
+    int32 level = 3;
+    int32 sort = 4;
+    string icon = 5; // 图标URL
+    string icon_local = 6; // 本地图标路径
+    string image = 7; // 图片URL
+    string image_local = 8; // 本地图片路径
+    string description = 9; // 类目描述
+    int32 status = 10;
+}
+
+// 创建类目响应
+message CreateCategoryResponse {
+    int32 code = 1;
+    string message = 2;
+    Category data = 3;
+}
+
+// 更新类目请求（管理后台）
+message UpdateCategoryRequest {
+    int64 id = 1;
+    int64 parent_id = 2;
+    string name = 3;
+    int32 level = 4;
+    int32 sort = 5;
+    string icon = 6; // 图标URL
+    string icon_local = 7; // 本地图标路径
+    string image = 8; // 图片URL
+    string image_local = 9; // 本地图片路径
+    string description = 10; // 类目描述
+    int32 status = 11;
+}
+
+// 更新类目响应
+message UpdateCategoryResponse {
+    int32 code = 1;
+    string message = 2;
+    Category data = 3;
+}
+
+// 删除类目请求（管理后台）
+message DeleteCategoryRequest {
+    int64 id = 1;
+}
+
+// 删除类目响应
+message DeleteCategoryResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// Banner信息
+message Banner {
+    int64 id = 1;
+    string title = 2;
+    string description = 3;
+    string image = 4; // 封面图片URL
+    string image_local = 5; // 本地图片路径
+    string link = 6; // 跳转链接
+    int32 link_type = 7; // 1-商品详情, 2-分类页面, 3-外部链接, 4-无链接
+    int32 sort = 8; // 排序值
+    int32 status = 9; // 0-禁用, 1-启用
+    string start_time = 10; // 开始时间
+    string end_time = 11; // 结束时间
+    string created_at = 12;
+    string updated_at = 13;
+}
+
+// 获取Banner列表请求
+message ListBannersRequest {
+    int32 status = 1; // -1-全部, 0-禁用, 1-启用
+    int32 limit = 2; // 限制数量，0表示不限制
+}
+
+// 获取Banner列表响应
+message ListBannersResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Banner data = 3;
+}
+
+// 获取Banner详情请求
+message GetBannerRequest {
+    int64 id = 1;
+}
+
+// 获取Banner详情响应
+message GetBannerResponse {
+    int32 code = 1;
+    string message = 2;
+    Banner data = 3;
+}
+
+// 创建Banner请求（管理后台）
+message CreateBannerRequest {
+    string title = 1;
+    string description = 2;
+    string image = 3; // 封面图片URL
+    string image_local = 4; // 本地图片路径
+    string link = 5; // 跳转链接
+    int32 link_type = 6; // 1-商品详情, 2-分类页面, 3-外部链接, 4-无链接
+    int32 sort = 7; // 排序值
+    int32 status = 8; // 0-禁用, 1-启用
+    string start_time = 9; // 开始时间
+    string end_time = 10; // 结束时间
+}
+
+// 创建Banner响应
+message CreateBannerResponse {
+    int32 code = 1;
+    string message = 2;
+    Banner data = 3;
+}
+
+// 更新Banner请求（管理后台）
+message UpdateBannerRequest {
+    int64 id = 1;
+    string title = 2;
+    string description = 3;
+    string image = 4; // 封面图片URL
+    string image_local = 5; // 本地图片路径
+    string link = 6; // 跳转链接
+    int32 link_type = 7; // 1-商品详情, 2-分类页面, 3-外部链接, 4-无链接
+    int32 sort = 8; // 排序值
+    int32 status = 9; // 0-禁用, 1-启用
+    string start_time = 10; // 开始时间
+    string end_time = 11; // 结束时间
+}
+
+// 更新Banner响应
+message UpdateBannerResponse {
+    int32 code = 1;
+    string message = 2;
+    Banner data = 3;
+}
+
+// 删除Banner请求（管理后台）
+message DeleteBannerRequest {
+    int64 id = 1;
+}
+
+// 删除Banner响应
+message DeleteBannerResponse {
+    int32 code = 1;
+    string message = 2;
+}
