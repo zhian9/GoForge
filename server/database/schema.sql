@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 -- ============================================
 -- Go 微服务电商项目数据库模型
 -- 数据库: MySQL 8.0
@@ -81,7 +83,10 @@ CREATE TABLE `category` (
                             `level` TINYINT NOT NULL COMMENT '类目层级: 1-一级, 2-二级, 3-三级',
                             `sort` INT DEFAULT 0 COMMENT '排序值，越大越靠前',
                             `icon` VARCHAR(255) DEFAULT NULL COMMENT '类目图标',
+                            `icon_local` VARCHAR(255) DEFAULT NULL COMMENT '类目本地图标路径',
                             `image` VARCHAR(255) DEFAULT NULL COMMENT '类目图片',
+                            `image_local` VARCHAR(255) DEFAULT NULL COMMENT '类目本地图片路径',
+                            `description` TEXT COMMENT '类目描述',
                             `status` TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
                             `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                             `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -100,13 +105,16 @@ CREATE TABLE `product` (
                            `category_id` BIGINT UNSIGNED NOT NULL COMMENT '类目ID',
                            `brand_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '品牌ID',
                            `main_image` VARCHAR(255) NOT NULL COMMENT '主图',
+                           `local_main_image` VARCHAR(255) DEFAULT NULL COMMENT '本地主图路径',
                            `images` JSON DEFAULT NULL COMMENT '商品图片列表',
+                           `local_images` JSON DEFAULT NULL COMMENT '本地图片路径列表',
                            `detail` TEXT COMMENT '商品详情',
                            `price` DECIMAL(10, 2) NOT NULL COMMENT '商品价格（最低SKU价格）',
                            `original_price` DECIMAL(10, 2) DEFAULT NULL COMMENT '原价',
                            `stock` INT DEFAULT 0 COMMENT '总库存（所有SKU库存之和）',
                            `sales` INT DEFAULT 0 COMMENT '销量',
                            `status` TINYINT DEFAULT 1 COMMENT '状态: 0-下架, 1-上架, 2-待审核',
+                           `is_hot` TINYINT DEFAULT 0 COMMENT '是否热门: 0-否, 1-是',
                            `sort` INT DEFAULT 0 COMMENT '排序值',
                            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -118,6 +126,28 @@ CREATE TABLE `product` (
                            KEY `idx_status` (`status`),
                            KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品表(SPU)';
+
+-- Banner表（横幅广告）
+CREATE TABLE `banner` (
+                           `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'Banner ID',
+                           `title` VARCHAR(200) DEFAULT NULL COMMENT '标题',
+                           `description` VARCHAR(500) DEFAULT NULL COMMENT '描述',
+                           `image` VARCHAR(255) NOT NULL COMMENT '封面图片URL',
+                           `image_local` VARCHAR(255) DEFAULT NULL COMMENT '本地图片路径',
+                           `link` VARCHAR(500) DEFAULT NULL COMMENT '跳转链接',
+                           `link_type` TINYINT DEFAULT 1 COMMENT '1-商品详情, 2-分类页面, 3-外部链接, 4-无链接',
+                           `sort` INT DEFAULT 0 COMMENT '排序值',
+                           `status` TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-启用',
+                           `start_time` DATETIME DEFAULT NULL COMMENT '开始时间',
+                           `end_time` DATETIME DEFAULT NULL COMMENT '结束时间',
+                           `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                           `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                           PRIMARY KEY (`id`),
+                           KEY `idx_sort` (`sort`),
+                           KEY `idx_status` (`status`),
+                           KEY `idx_start_time` (`start_time`),
+                           KEY `idx_end_time` (`end_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Banner表';
 
 -- SKU表
 CREATE TABLE `sku` (
@@ -385,20 +415,16 @@ CREATE TABLE `promotion` (
 
 -- 积分表
 CREATE TABLE `points` (
-                          `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '积分记录ID',
+                          `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '积分账户ID',
                           `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
-                          `type` TINYINT NOT NULL COMMENT '类型: 1-获得, 2-消费',
-                          `points` INT NOT NULL COMMENT '积分数量（正数表示获得，负数表示消费）',
-                          `source` VARCHAR(50) NOT NULL COMMENT '来源: order, sign, refund等',
-                          `source_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '来源ID（如订单ID）',
-                          `balance` INT NOT NULL COMMENT '操作后余额',
-                          `remark` VARCHAR(255) DEFAULT NULL COMMENT '备注',
+                          `total` BIGINT NOT NULL DEFAULT 0 COMMENT '总积分',
+                          `used` BIGINT NOT NULL DEFAULT 0 COMMENT '已用积分',
+                          `available` BIGINT NOT NULL DEFAULT 0 COMMENT '可用积分',
                           `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                          `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                           PRIMARY KEY (`id`),
-                          KEY `idx_user_id` (`user_id`),
-                          KEY `idx_type` (`type`),
-                          KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='积分表';
+                          UNIQUE KEY `uk_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='积分账户表';
 
 -- ============================================
 -- 七、评价服务 (review-service)
@@ -530,10 +556,14 @@ CREATE TABLE `cart` (
                         `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '购物车ID',
                         `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
                         `sku_id` BIGINT UNSIGNED NOT NULL COMMENT 'SKU ID',
+                        `product_name` VARCHAR(200) DEFAULT NULL COMMENT '商品名称（冗余）',
+                        `price` DECIMAL(10, 2) DEFAULT NULL COMMENT '加入时单价',
+                        `product_image` VARCHAR(500) DEFAULT NULL COMMENT '商品图片（冗余）',
                         `quantity` INT NOT NULL DEFAULT 1 COMMENT '数量',
                         `is_selected` TINYINT DEFAULT 1 COMMENT '是否选中: 0-未选中, 1-选中',
                         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                        `deleted_at` DATETIME DEFAULT NULL COMMENT '删除时间',
                         PRIMARY KEY (`id`),
                         UNIQUE KEY `uk_user_sku` (`user_id`, `sku_id`),
                         KEY `idx_user_id` (`user_id`)

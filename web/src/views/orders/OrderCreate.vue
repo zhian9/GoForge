@@ -65,40 +65,63 @@
     <!-- ======== 地址选择弹窗 ======== -->
     <div v-if="showAddressDialog" class="modal-overlay" @click.self="showAddressDialog=false">
       <div class="modal-card">
-        <h3 class="modal-title">选择收货地址</h3>
-        <div v-if="addresses.length===0" class="empty-block" style="padding:40px 0">暂无收货地址，请先去个人中心添加</div>
-        <div v-else class="address-list">
-          <div
-            v-for="addr in addresses" :key="addr.id"
-            class="addr-option"
-            :class="{selected:selectedAddressId===addr.id}"
-            @click="selectedAddressId=addr.id"
-          >
-            <span class="radio-dot" :class="{checked:selectedAddressId===addr.id}"></span>
-            <div class="addr-content">
-              <p class="addr-name">{{ addr.receiver_name }} <span class="addr-phone">{{ addr.receiver_phone }}</span></p>
-              <p class="addr-detail">{{ displayAddress(addr) }}</p>
-            </div>
+        <h3 class="modal-title">{{ addressFormVisible ? (editingAddressId ? '编辑收货地址' : '新增收货地址') : '选择收货地址' }}</h3>
+
+        <!-- 地址表单 -->
+        <div v-if="addressFormVisible" class="address-form">
+          <div class="form-row"><label>收货人</label><input v-model="addressForm.receiver_name" placeholder="姓名" /></div>
+          <div class="form-row"><label>手机号</label><input v-model="addressForm.receiver_phone" placeholder="手机号" /></div>
+          <div class="form-row"><label>省份</label><input v-model="addressForm.province" placeholder="省份" /></div>
+          <div class="form-row"><label>城市</label><input v-model="addressForm.city" placeholder="城市" /></div>
+          <div class="form-row"><label>区县</label><input v-model="addressForm.district" placeholder="区县" /></div>
+          <div class="form-row"><label>详细地址</label><input v-model="addressForm.detail" placeholder="街道、门牌号等" /></div>
+          <label class="default-check"><input type="checkbox" v-model="addressForm.is_default" /> 设为默认地址</label>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="cancelAddressForm">取消</button>
+            <button class="btn-save" :class="{loading:addressSaving}" @click="saveAddress">{{ addressSaving ? '保存中...' : '保存' }}</button>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="showAddressDialog=false">取消</button>
-          <button class="btn-save" @click="confirmAddress">确定</button>
-        </div>
+
+        <!-- 地址列表 -->
+        <template v-else>
+          <div v-if="addresses.length===0" class="empty-block" style="padding:40px 0">暂无收货地址，点下方「新增地址」添加</div>
+          <div v-else class="address-list">
+            <div
+              v-for="addr in addresses" :key="addr.id"
+              class="addr-option"
+              :class="{selected:selectedAddressId===addr.id}"
+              @click="selectedAddressId=addr.id"
+            >
+              <span class="radio-dot" :class="{checked:selectedAddressId===addr.id}"></span>
+              <div class="addr-content">
+                <p class="addr-name">{{ addr.receiver_name }} <span class="addr-phone">{{ addr.receiver_phone }}</span></p>
+                <p class="addr-detail">{{ displayAddress(addr) }}</p>
+              </div>
+              <button class="btn-link addr-edit" @click.stop="openEditAddress(addr)">编辑</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-link" @click="openAddAddress">+ 新增地址</button>
+            <div class="footer-right">
+              <button class="btn-cancel" @click="showAddressDialog=false">取消</button>
+              <button class="btn-save" @click="confirmAddress">确定</button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { createOrder } from '@/api/order'
-import { clearCart } from '@/api/cart'
-import { getAddressList } from '@/api/user'
+import { removeItem } from '@/api/cart'
+import { getAddressList, addAddress, updateAddress } from '@/api/user'
 import type { CartItem } from '@/api/cart'
 import type { Address } from '@/api/user'
 
@@ -111,6 +134,10 @@ const selectedAddressId = ref<number|null>(null)
 const selectedAddress = ref<Address|null>(null)
 const addresses = ref<Address[]>([])
 const orderItems = ref<CartItem[]>([])
+const addressFormVisible = ref(false)
+const editingAddressId = ref<number|null>(null)
+const addressSaving = ref(false)
+const addressForm = reactive({ receiver_name:'', receiver_phone:'', province:'', city:'', district:'', detail:'', is_default:false })
 
 const placeholderUri = 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#1a1f2e" width="200" height="200"/><text fill="#4a5068" font-size="14" x="50%" y="50%" text-anchor="middle" dominant-baseline="central">无图</text></svg>')
 
@@ -134,17 +161,99 @@ const handleSubmit = async () => {
   try{
     const addr = selectedAddress.value
     const addrStr = displayAddress(addr)
-    const r = await createOrder({user_id:userStore.userId,items:orderItems.value.map(i=>({sku_id:i.skuId,quantity:i.quantity,product_name:i.productName||'',price:String(i.price||0)})),address_id:addr.id,receiver_name:addr.receiver_name,receiver_phone:addr.receiver_phone,receiver_address:addrStr,clear_cart:true,order_type:1})
-    if(r.code===0&&r.data){ElMessage.success('订单创建成功');try{await clearCart(userStore.userId)}catch{};cartStore.clearCart();router.push(`/orders/${r.data.id}`)}
+    const r = await createOrder({user_id:userStore.userId,items:orderItems.value.map(i=>({sku_id:i.skuId,quantity:i.quantity,product_name:i.productName||'',price:String(i.price||0)})),address_id:addr.id,receiver_name:addr.receiver_name,receiver_phone:addr.receiver_phone,receiver_address:addrStr,clear_cart:false,order_type:1})
+    if(r.code===0&&r.data){
+      ElMessage.success('订单创建成功')
+      // 只移除已下单的商品，未选中的商品保留在购物车
+      const orderedSkuIds = orderItems.value.map(i => i.skuId)
+      try { await Promise.all(orderedSkuIds.map(skuId => removeItem(skuId))) } catch {}
+      orderedSkuIds.forEach(skuId => cartStore.removeItem(skuId))
+      router.push(`/orders/${r.data.id}`)
+    }
     else ElMessage.error(r.message||'创建订单失败')
   }catch(e:any){ElMessage.error(e.message||'创建订单失败')}
   finally{submitting.value=false}
 }
 
-const loadAddresses = async () => {
-  try{const r=await getAddressList(userStore.userId);if(r.code===0&&r.data){addresses.value=r.data;const d=r.data.find((a:Address)=>a.is_default===1)||r.data[0];if(d){selectedAddressId.value=d.id;selectedAddress.value=d}}}catch{}
+const loadAddresses = async (preferId?: number) => {
+  try{
+    const r = await getAddressList(userStore.userId)
+    if(r.code===0 && r.data){
+      addresses.value = r.data
+      const d = preferId ? r.data.find((a:Address)=>a.id===preferId) : (r.data.find((a:Address)=>a.is_default===1) || r.data[0])
+      if(d){ selectedAddressId.value = d.id; selectedAddress.value = d }
+    }
+  }catch{}
 }
-const loadOrderItems = async () => {await cartStore.fetchCart();orderItems.value=cartStore.cartItems.map(i=>({...i}))}
+
+const openAddAddress = () => {
+  editingAddressId.value = null
+  Object.assign(addressForm, { receiver_name:'', receiver_phone:'', province:'', city:'', district:'', detail:'', is_default:false })
+  addressFormVisible.value = true
+}
+
+const openEditAddress = (addr: Address) => {
+  editingAddressId.value = addr.id
+  Object.assign(addressForm, { receiver_name:addr.receiver_name, receiver_phone:addr.receiver_phone, province:addr.province, city:addr.city, district:addr.district, detail:addr.detail, is_default:addr.is_default===1 })
+  addressFormVisible.value = true
+}
+
+const cancelAddressForm = () => {
+  addressFormVisible.value = false
+  editingAddressId.value = null
+}
+
+const saveAddress = async () => {
+  if(!addressForm.receiver_name || !addressForm.receiver_phone || !addressForm.province || !addressForm.detail){
+    ElMessage.warning('请填写收货人、手机号、省份和详细地址'); return
+  }
+  addressSaving.value = true
+  try {
+    const data:any = {
+      user_id: userStore.userId,
+      receiver_name: addressForm.receiver_name,
+      receiver_phone: addressForm.receiver_phone,
+      province: addressForm.province,
+      city: addressForm.city,
+      district: addressForm.district,
+      detail: addressForm.detail,
+      is_default: addressForm.is_default ? 1 : 0,
+    }
+    if (editingAddressId.value) {
+      data.id = editingAddressId.value
+      await updateAddress(editingAddressId.value, data)
+      ElMessage.success('地址已更新')
+      await loadAddresses(editingAddressId.value)
+    } else {
+      const r:any = await addAddress(data)
+      if (r.code === 0) {
+        ElMessage.success('地址已添加')
+        await loadAddresses(r.data?.id)
+      } else {
+        ElMessage.error(r.message || '添加失败')
+      }
+    }
+    addressFormVisible.value = false
+    editingAddressId.value = null
+  } catch(e:any) { ElMessage.error(e.message || '保存失败') }
+  finally { addressSaving.value = false }
+}
+const loadOrderItems = async () => {
+  // 立即购买：路由带 sku_id，只结算这一件（需要拉最新购物车拿到刚加购的这件）
+  const buyNowSkuId = Number(route.query.sku_id || 0)
+  if (buyNowSkuId) {
+    await cartStore.fetchCart()
+    const item = cartStore.cartItems.find(i => i.skuId === buyNowSkuId)
+    if (item) {
+      const qty = Number(route.query.quantity || 0)
+      orderItems.value = [{ ...item, quantity: qty > 0 ? qty : item.quantity }]
+      return
+    }
+  }
+  // 购物车结算：尊重用户在购物车页的勾选状态（本地已有就不再重新拉取，避免勾选被后端默认值覆盖）
+  if (cartStore.cartItems.length === 0) await cartStore.fetchCart()
+  orderItems.value = cartStore.cartItems.filter(i => i.isSelected === 1).map(i => ({...i}))
+}
 
 onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses(),loadOrderItems()])}finally{loading.value=false}})
 </script>
@@ -219,6 +328,14 @@ onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses()
 .btn-cancel:hover { background:rgba(255,255,255,.04); }
 .btn-save { padding:10px 28px;border-radius:100px;border:none;background:var(--accent);color:#0A0F1C;font-size:14px;font-weight:600;cursor:pointer; }
 .btn-save:hover { box-shadow:0 0 20px rgba(0,245,255,.3); }
+.addr-edit { flex-shrink:0; }
+.address-form { display:flex; flex-direction:column; gap:12px; }
+.form-row { display:flex; align-items:center; gap:10px; }
+.form-row label { width:70px; font-size:13px; color:var(--text-dim); flex-shrink:0; }
+.form-row input { flex:1; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--text); font-size:13px; outline:none; transition:border-color .2s; font-family:inherit; }
+.form-row input:focus { border-color:var(--accent); }
+.default-check { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim); cursor:pointer; }
+.footer-right { display:flex; gap:12px; }
 
 @media(max-width:768px) { .order-layout { flex-direction:column; } .order-sidebar { width:100%;position:static; } }
 </style>

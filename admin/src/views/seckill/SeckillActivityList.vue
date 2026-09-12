@@ -136,7 +136,7 @@ const handleDelete = async (row:SeckillActivity) => { try{await ElMessageBox.con
 
 const handleSubmit = async () => {
   if(!formRef.value)return; await formRef.value.validate(async(valid)=>{if(!valid)return;if(!form.value.sku_id||!form.value.start_time||!form.value.end_time)return
-  const p={name:form.value.name,sku_id:form.value.sku_id,seckill_price:String(form.value.seckill_price||''),stock:Number(form.value.stock||0),start_time:Math.floor(form.value.start_time.getTime()/1000),end_time:Math.floor(form.value.end_time.getTime()/1000),enable_status:Number(form.value.enable_status||1)}
+  const p={name:form.value.name,sku_id:form.value.sku_id,seckill_price:String(form.value.seckill_price||''),stock:Number(form.value.stock||0),start_time:Math.floor(form.value.start_time.getTime()/1000),end_time:Math.floor(form.value.end_time.getTime()/1000),enable_status:Number(form.value.enable_status ?? 1)}
   submitting.value=true; try{if(isEdit.value){await updateSeckillActivity(form.value.id,p);ElMessage.success('已更新')}else{await createSeckillActivity(p);ElMessage.success('已创建')}dialogVisible.value=false;fetchList()}catch(e:any){ElMessage.error(e.message||'保存失败')}finally{submitting.value=false}
 })}
 

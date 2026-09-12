@@ -98,6 +98,12 @@ Upstreams:
       - Method: delete
         Path: /api/v1/user/address/:id
         RpcPath: user.v1.UserService/DeleteAddress
+      - Method: options
+        Path: /api/v1/user/signin
+        RpcPath: user.v1.UserService/SignIn
+      - Method: post
+        Path: /api/v1/user/signin
+        RpcPath: user.v1.UserService/SignIn
 
   # 商品服务
   - Name: product-service
@@ -259,6 +265,18 @@ Upstreams:
       - Method: put
         Path: /api/v1/orders/:id/cancel
         RpcPath: order.v1.OrderService/CancelOrder
+      - Method: options
+        Path: /api/v1/orders/:id/ship
+        RpcPath: order.v1.OrderService/ShipOrder
+      - Method: post
+        Path: /api/v1/orders/:id/ship
+        RpcPath: order.v1.OrderService/ShipOrder
+      - Method: options
+        Path: /api/v1/orders/:id/receive
+        RpcPath: order.v1.OrderService/ConfirmReceive
+      - Method: put
+        Path: /api/v1/orders/:id/receive
+        RpcPath: order.v1.OrderService/ConfirmReceive
 
   # 支付服务
   - Name: payment-service
@@ -284,6 +302,18 @@ Upstreams:
       - Method: post
         Path: /api/v1/payments/:payment_no/refund
         RpcPath: payment.v1.PaymentService/Refund
+      - Method: options
+        Path: /api/v1/payments/callback
+        RpcPath: payment.v1.PaymentService/PaymentCallback
+      - Method: post
+        Path: /api/v1/payments/callback
+        RpcPath: payment.v1.PaymentService/PaymentCallback
+      - Method: options
+        Path: /api/v1/payments/:payment_no/status
+        RpcPath: payment.v1.PaymentService/QueryPaymentStatus
+      - Method: get
+        Path: /api/v1/payments/:payment_no/status
+        RpcPath: payment.v1.PaymentService/QueryPaymentStatus
 
   # 评价服务
   - Name: review-service
@@ -350,6 +380,46 @@ Upstreams:
         Path: /api/v1/inventory/deduct
         RpcPath: inventory.v1.InventoryService/DeductStock
 
+  # 物流服务
+  - Name: logistics-service
+    Grpc:
+      Target: 127.0.0.1:8008
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/logistics
+        RpcPath: logistics.v1.LogisticsService/CreateLogistics
+      - Method: post
+        Path: /api/v1/logistics
+        RpcPath: logistics.v1.LogisticsService/CreateLogistics
+      - Method: get
+        Path: /api/v1/logistics
+        RpcPath: logistics.v1.LogisticsService/ListLogistics
+      - Method: options
+        Path: /api/v1/logistics/tracking
+        RpcPath: logistics.v1.LogisticsService/QueryTracking
+      - Method: get
+        Path: /api/v1/logistics/tracking
+        RpcPath: logistics.v1.LogisticsService/QueryTracking
+      - Method: options
+        Path: /api/v1/logistics/calculate-freight
+        RpcPath: logistics.v1.LogisticsService/CalculateFreight
+      - Method: post
+        Path: /api/v1/logistics/calculate-freight
+        RpcPath: logistics.v1.LogisticsService/CalculateFreight
+      - Method: options
+        Path: /api/v1/logistics/:order_id
+        RpcPath: logistics.v1.LogisticsService/GetLogistics
+      - Method: get
+        Path: /api/v1/logistics/:order_id
+        RpcPath: logistics.v1.LogisticsService/GetLogistics
+      - Method: options
+        Path: /api/v1/logistics/:logistics_no/status
+        RpcPath: logistics.v1.LogisticsService/UpdateLogisticsStatus
+      - Method: put
+        Path: /api/v1/logistics/:logistics_no/status
+        RpcPath: logistics.v1.LogisticsService/UpdateLogisticsStatus
+
   # 购物车服务
   - Name: cart-service
     Grpc:
@@ -380,6 +450,18 @@ Upstreams:
       - Method: delete
         Path: /api/v1/cart
         RpcPath: cart.v1.CartService/ClearCart
+      - Method: options
+        Path: /api/v1/cart/select
+        RpcPath: cart.v1.CartService/SelectItem
+      - Method: post
+        Path: /api/v1/cart/select
+        RpcPath: cart.v1.CartService/SelectItem
+      - Method: options
+        Path: /api/v1/cart/select/batch
+        RpcPath: cart.v1.CartService/BatchSelect
+      - Method: post
+        Path: /api/v1/cart/select/batch
+        RpcPath: cart.v1.CartService/BatchSelect
 
   # 营销服务
   - Name: promotion-service

@@ -7,6 +7,7 @@ import (
 
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	"github.com/zhian9/GoForge/server/internal/pkg/database"
+	"github.com/zhian9/GoForge/server/internal/pkg/mq"
 	"github.com/zhian9/GoForge/server/internal/service/payment/repository"
 )
 
@@ -15,6 +16,8 @@ type ServiceContext struct {
 	Config         Config
 	DB             *gorm.DB
 	Redis          *redis.Client
+	Cache          *cache.CacheOperations
+	MQProducer     *mq.Producer
 	PaymentRepo    repository.PaymentRepository
 	PaymentLogRepo repository.PaymentLogRepository
 }
@@ -59,6 +62,25 @@ func NewServiceContext(c Config) *ServiceContext {
 		Config: c,
 		DB:     db,
 		Redis:  redisClient,
+	}
+
+	// 初始化缓存操作（仅在Redis连接成功时）
+	if redisClient != nil {
+		ctx.Cache = cache.NewCacheOperations(redisClient)
+	}
+
+	// 初始化Kafka生产者
+	if len(c.Kafka.Brokers) > 0 {
+		mqProducer, err := mq.NewProducer(&mq.Config{
+			Brokers:       c.Kafka.Brokers,
+			Version:       c.Kafka.Version,
+			ProducerAsync: true,
+		})
+		if err != nil {
+			logx.Errorf("初始化Kafka生产者失败: %v", err)
+		} else {
+			ctx.MQProducer = mqProducer
+		}
 	}
 
 	// 初始化Repository

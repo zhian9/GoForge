@@ -60,7 +60,7 @@ proto: ## 生成 Protobuf 代码
 
 start-infra: ## 启动基础设施 (MySQL/Redis/etcd/Mongo/ES/Kafka)
 	@echo "Starting infrastructure..."
-	@cd $(DEPLOY_DIR) && docker compose up -d mysql redis etcd mongodb elasticsearch zookeeper kafka
+	@cd $(DEPLOY_DIR) && docker compose --progress plain up -d mysql redis etcd mongodb elasticsearch zookeeper kafka
 	@echo "Infrastructure started."
 
 stop-infra: ## 停止基础设施

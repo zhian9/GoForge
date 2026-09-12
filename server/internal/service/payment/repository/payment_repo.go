@@ -18,6 +18,8 @@ type PaymentRepository interface {
 	Update(ctx context.Context, payment *model.Payment) error
 	// UpdateStatus 更新支付状态
 	UpdateStatus(ctx context.Context, paymentNo string, status int8) error
+	// UpdateStatusAtomic 原子更新状态（带前置状态条件，用于幂等），返回是否命中并更新
+	UpdateStatusAtomic(ctx context.Context, paymentNo string, fromStatus int8, updates map[string]interface{}) (bool, error)
 }
 
 type paymentRepository struct {
@@ -64,4 +66,15 @@ func (r *paymentRepository) UpdateStatus(ctx context.Context, paymentNo string, 
 	return r.db.WithContext(ctx).Model(&model.Payment{}).
 		Where("payment_no = ?", paymentNo).
 		Update("status", status).Error
+}
+
+// UpdateStatusAtomic 原子更新状态（带前置状态条件，用于幂等），返回是否命中并更新
+func (r *paymentRepository) UpdateStatusAtomic(ctx context.Context, paymentNo string, fromStatus int8, updates map[string]interface{}) (bool, error) {
+	res := r.db.WithContext(ctx).Model(&model.Payment{}).
+		Where("payment_no = ? AND status = ?", paymentNo, fromStatus).
+		Updates(updates)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
 }

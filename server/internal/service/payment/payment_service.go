@@ -26,6 +26,9 @@ func NewPaymentService(svcCtx *ServiceContext) *PaymentService {
 	logic := service.NewPaymentLogic(
 		svcCtx.PaymentRepo,
 		svcCtx.PaymentLogRepo,
+		svcCtx.Cache,
+		svcCtx.MQProducer,
+		svcCtx.DB,
 	)
 
 	return &PaymentService{

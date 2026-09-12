@@ -51,9 +51,26 @@ export interface BatchSelectRequest {
   is_selected: number
 }
 
+// 网关返回 protobuf JSON 默认是 camelCase（userId/skuId/isSelected），这里统一成 snake_case 供页面使用
+const normalizeCartItem = (raw: any): CartItem => {
+  return {
+    id: Number(raw.id ?? 0),
+    user_id: Number(raw.user_id ?? raw.userId ?? 0),
+    sku_id: Number(raw.sku_id ?? raw.skuId ?? 0),
+    quantity: Number(raw.quantity ?? 0),
+    is_selected: Number(raw.is_selected ?? raw.isSelected ?? 0),
+    created_at: raw.created_at ?? raw.createdAt ?? '',
+    updated_at: raw.updated_at ?? raw.updatedAt ?? '',
+  }
+}
+
 // 获取购物车
 export const getCart = (userId: number) => {
   return request.get<GetCartResponse>('/v1/cart', { params: { user_id: userId } })
+    .then((res) => ({
+      ...res,
+      data: (Array.isArray(res.data) ? res.data : []).map(normalizeCartItem),
+    }))
 }
 
 // 添加商品到购物车
@@ -78,11 +95,11 @@ export const clearCart = (userId: number) => {
 
 // 选择/取消选择商品
 export const selectCartItem = (data: SelectItemRequest) => {
-  return request.put<{ code: number; message: string }>('/v1/cart/select', data)
+  return request.post<{ code: number; message: string }>('/v1/cart/select', data)
 }
 
 // 批量选择/取消选择
 export const batchSelectCartItems = (data: BatchSelectRequest) => {
-  return request.put<{ code: number; message: string }>('/v1/cart/batch-select', data)
+  return request.post<{ code: number; message: string }>('/v1/cart/select/batch', data)
 }
 

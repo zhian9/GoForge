@@ -21,7 +21,7 @@ type Logistics struct {
 	SenderAddress    *string    `gorm:"column:sender_address;size:500" json:"sender_address"`
 	Status           int8       `gorm:"column:status;default:0;index" json:"status"` // 0-待发货, 1-已发货, 2-运输中, 3-已送达, 4-异常
 	CurrentLocation  *string    `gorm:"column:current_location;size:200" json:"current_location"`
-	TrackingInfo     JSONData   `gorm:"column:tracking_info;type:json" json:"tracking_info"`
+	TrackingInfo     TrackingList `gorm:"column:tracking_info;type:json" json:"tracking_info"`
 	ShippedAt        *time.Time `gorm:"column:shipped_at" json:"shipped_at"`
 	DeliveredAt      *time.Time `gorm:"column:delivered_at" json:"delivered_at"`
 	CreatedAt        time.Time  `gorm:"column:created_at" json:"created_at"`
@@ -33,26 +33,34 @@ func (Logistics) TableName() string {
 	return "logistics"
 }
 
-// JSONData JSON数据类型
-type JSONData map[string]interface{}
+// TrackingNode 物流轨迹节点
+type TrackingNode struct {
+	Time     string `json:"time"`
+	Status   string `json:"status"`
+	Location string `json:"location"`
+	Remark   string `json:"remark"`
+}
+
+// TrackingList 物流轨迹列表（JSON 存储）
+type TrackingList []TrackingNode
 
 // Value 实现 driver.Valuer 接口
-func (j JSONData) Value() (driver.Value, error) {
-	if j == nil {
+func (t TrackingList) Value() (driver.Value, error) {
+	if t == nil {
 		return nil, nil
 	}
-	return json.Marshal(j)
+	return json.Marshal(t)
 }
 
 // Scan 实现 sql.Scanner 接口
-func (j *JSONData) Scan(value interface{}) error {
+func (t *TrackingList) Scan(value interface{}) error {
 	if value == nil {
-		*j = nil
+		*t = nil
 		return nil
 	}
 	bytes, ok := value.([]byte)
 	if !ok {
 		return nil
 	}
-	return json.Unmarshal(bytes, j)
+	return json.Unmarshal(bytes, t)
 }

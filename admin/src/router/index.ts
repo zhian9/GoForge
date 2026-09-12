@@ -70,12 +70,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '支付管理', icon: 'CreditCard' },
       },
       {
-        path: 'inventory',
-        name: 'Inventory',
-        component: () => import('@/views/inventory/InventoryList.vue'),
-        meta: { title: '库存管理', icon: 'Box' },
-      },
-      {
         path: 'promotions',
         name: 'Promotions',
         component: () => import('@/views/promotions/PromotionList.vue'),

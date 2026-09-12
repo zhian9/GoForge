@@ -1,17 +1,27 @@
+SET NAMES utf8mb4;
+
+-- ===== 管理员账号 =====
+-- 账号: admin / 密码: admin123
+INSERT INTO user (id, username, nickname, status, member_level, points, is_admin, created_at, updated_at) VALUES
+(1, 'admin', '管理员', 1, 0, 0, 1, NOW(), NOW());
+
+INSERT INTO credential (user_id, credential_type, credential_key, credential_value, extra, created_at, updated_at) VALUES
+(1, 1, 'admin', '$2a$10$Tf2GYbDstDsrKX4WNv8BP.OpCqxeM6VVRvY7xLUkXDWhBVcnzeppO', '{}', NOW(), NOW());
+
 -- ===== 分类数据 =====
-INSERT INTO category (id, parent_id, name, level, sort, image, status, created_at, updated_at) VALUES
-(1, 0, '手机', 1, 1, 'https://picsum.photos/seed/phone/100/100', '', '手机数码', 1, NOW(), NOW()),
-(2, 0, '电脑', 1, 2, 'https://picsum.photos/seed/laptop/100/100', '', '电脑办公', 1, NOW(), NOW()),
-(3, 0, '家电', 1, 3, 'https://picsum.photos/seed/homeapp/100/100', '', '家用电器', 1, NOW(), NOW()),
-(4, 0, '服饰', 1, 4, 'https://picsum.photos/seed/cloth/100/100', '', '服饰鞋包', 1, NOW(), NOW()),
-(5, 0, '食品', 1, 5, 'https://picsum.photos/seed/food/100/100', '', '食品生鲜', 1, NOW(), NOW()),
-(6, 0, '家居', 1, 6, 'https://picsum.photos/seed/home/100/100', '', '家居用品', 1, NOW(), NOW()),
-(11, 1, '智能手机', 2, 1, 'https://picsum.photos/seed/smartphone/100/100', '', '', 1, NOW(), NOW()),
-(12, 1, '功能手机', 2, 2, 'https://picsum.photos/seed/feature/100/100', '', '', 1, NOW(), NOW()),
-(13, 1, '手机配件', 2, 3, 'https://picsum.photos/seed/acc/100/100', '', '', 1, NOW(), NOW()),
-(21, 2, '笔记本', 2, 1, 'https://picsum.photos/seed/notebook/100/100', '', '', 1, NOW(), NOW()),
-(22, 2, '台式机', 2, 2, 'https://picsum.photos/seed/desktop/100/100', '', '', 1, NOW(), NOW()),
-(23, 2, '平板电脑', 2, 3, 'https://picsum.photos/seed/tablet/100/100', '', '', 1, NOW(), NOW());
+INSERT INTO category (id, parent_id, name, level, sort, icon, image, status, created_at, updated_at) VALUES
+(1, 0, '手机', 1, 1, '', 'https://picsum.photos/seed/phone/100/100', 1, NOW(), NOW()),
+(2, 0, '电脑', 1, 2, '', 'https://picsum.photos/seed/laptop/100/100', 1, NOW(), NOW()),
+(3, 0, '家电', 1, 3, '', 'https://picsum.photos/seed/homeapp/100/100', 1, NOW(), NOW()),
+(4, 0, '服饰', 1, 4, '', 'https://picsum.photos/seed/cloth/100/100', 1, NOW(), NOW()),
+(5, 0, '食品', 1, 5, '', 'https://picsum.photos/seed/food/100/100', 1, NOW(), NOW()),
+(6, 0, '家居', 1, 6, '', 'https://picsum.photos/seed/home/100/100', 1, NOW(), NOW()),
+(11, 1, '智能手机', 2, 1, '', 'https://picsum.photos/seed/smartphone/100/100', 1, NOW(), NOW()),
+(12, 1, '功能手机', 2, 2, '', 'https://picsum.photos/seed/feature/100/100', 1, NOW(), NOW()),
+(13, 1, '手机配件', 2, 3, '', 'https://picsum.photos/seed/acc/100/100', 1, NOW(), NOW()),
+(21, 2, '笔记本', 2, 1, '', 'https://picsum.photos/seed/notebook/100/100', 1, NOW(), NOW()),
+(22, 2, '台式机', 2, 2, '', 'https://picsum.photos/seed/desktop/100/100', 1, NOW(), NOW()),
+(23, 2, '平板电脑', 2, 3, '', 'https://picsum.photos/seed/tablet/100/100', 1, NOW(), NOW());
 
 -- ===== Banner 数据 =====
 INSERT INTO banner (id, title, description, image, image_local, link, link_type, sort, status, start_time, end_time, created_at, updated_at) VALUES
@@ -59,3 +69,11 @@ INSERT INTO inventory (sku_id, total_stock, available_stock, locked_stock, sold_
 (9, 1000, 1000, 0, 0, 10, NOW(), NOW()),
 (10, 80, 80, 0, 0, 5, NOW(), NOW()),
 (11, 150, 150, 0, 0, 5, NOW(), NOW());
+
+-- ===== 秒杀活动数据 =====
+-- status: 0-禁用, 1-启用；运行状态由 start_time/end_time 与当前时间动态计算
+INSERT INTO seckill_activity (name, sku_id, seckill_price, stock, start_time, end_time, status, created_at, updated_at) VALUES
+('限时秒杀：小米15 Pro 12+256', 1, 3999.00, 100, UNIX_TIMESTAMP() - 3600, UNIX_TIMESTAMP() + 86400, 1, NOW(), NOW()),
+('限时秒杀：华为 Mate 70 Pro', 2, 5999.00, 80, UNIX_TIMESTAMP() - 3600, UNIX_TIMESTAMP() + 86400, 1, NOW(), NOW()),
+('限时秒杀：海尔冰箱 456L', 7, 2699.00, 50, UNIX_TIMESTAMP() - 1800, UNIX_TIMESTAMP() + 43200, 1, NOW(), NOW()),
+('即将开抢：三只松鼠坚果礼盒', 9, 79.00, 200, UNIX_TIMESTAMP() + 3600, UNIX_TIMESTAMP() + 172800, 1, NOW(), NOW());

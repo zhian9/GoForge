@@ -112,7 +112,7 @@
           <h3 class="card-title">账户信息</h3>
           <div class="account-grid">
             <div class="account-item"><span class="a-label">会员等级</span><span class="a-value">{{ levelText }}</span></div>
-            <div class="account-item"><span class="a-label">积分</span><span class="a-value accent">{{ userStore.userInfo?.points || 0 }}</span></div>
+            <div class="account-item"><span class="a-label">积分</span><span class="a-value accent">{{ userStore.userInfo?.points || 0 }}<button class="signin-btn" :disabled="signInLoading" @click="handleSignIn">{{ signInLoading?'签到中…':'签到' }}</button></span></div>
             <div class="account-item"><span class="a-label">注册时间</span><span class="a-value">{{ userStore.userInfo?.created_at || '-' }}</span></div>
             <div class="account-item"><span class="a-label">最后更新</span><span class="a-value">{{ userStore.userInfo?.updated_at || '-' }}</span></div>
           </div>
@@ -152,7 +152,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { updateUserInfo, getAddressList, addAddress, updateAddress, deleteAddress } from '@/api/user'
+import { updateUserInfo, getAddressList, addAddress, updateAddress, deleteAddress, signIn } from '@/api/user'
 import type { Address, UpdateAddressRequest } from '@/api/user'
 
 const userStore = useUserStore()
@@ -165,6 +165,23 @@ const tabs = [
 const genders = [{ value:0, label:'未知' },{ value:1, label:'男' },{ value:2, label:'女' }]
 const levelText = computed(() => ({ 1:'普通会员',2:'银卡会员',3:'金卡会员',4:'钻石会员' }[userStore.userInfo?.member_level||1]||'普通会员'))
 const initial = computed(() => (userStore.userInfo?.nickname || userStore.userInfo?.username || 'U')[0])
+
+const signInLoading = ref(false)
+const handleSignIn = async () => {
+  const uid = userStore.userInfo?.id || userStore.userId
+  if (!uid) { ElMessage.warning('请先登录'); return }
+  if (signInLoading.value) return
+  signInLoading.value = true
+  try {
+    const r = await signIn(Number(uid))
+    ElMessage.success(`签到成功 +${r.addedPoints ?? 10} 积分`)
+    await userStore.fetchUserInfo()
+  } catch {
+    // 已签到等错误由请求拦截器统一提示
+  } finally {
+    signInLoading.value = false
+  }
+}
 
 const resolveUrl = (url: string) => { if(!url) return ''; if(url.startsWith('http')) return url; if(url.startsWith('/')) return 'http://localhost:8080'+url; return url }
 
@@ -342,6 +359,9 @@ onMounted(async () => {
 .a-label { font-size:12px; color:var(--text-dim); }
 .a-value { font-size:16px; color:var(--text); font-weight:500; }
 .a-value.accent { color:var(--accent); font-weight:700; }
+.signin-btn { margin-left:10px; padding:4px 14px; border-radius:100px; border:1px solid var(--accent); background:transparent; color:var(--accent); font-size:12px; cursor:pointer; transition:all .15s; }
+.signin-btn:hover:not(:disabled) { background:var(--accent-dim, rgba(0,245,255,.08)); }
+.signin-btn:disabled { opacity:.5; cursor:not-allowed; }
 
 /* Modal */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:200; display:flex; align-items:center; justify-content:center; }

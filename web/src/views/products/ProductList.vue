@@ -112,6 +112,7 @@ import { ElMessage } from 'element-plus'
 import { getProductList } from '@/api/product'
 import { getCategoryTree } from '@/api/category'
 import { addItem } from '@/api/cart'
+import { getDefaultSkuId } from '@/api/sku'
 import type { Product } from '@/api/product'
 import type { Category } from '@/api/category'
 
@@ -175,7 +176,10 @@ const handleSortChange = () => { currentPage.value = 1; fetchProducts() }
 
 const addToCart = async (p: Product) => {
   if (!userStore.token) { ElMessage.warning('请先登录'); router.push('/login'); return }
-  try { await addItem({ skuId:p.id, quantity:1 }); ElMessage.success('已添加到购物车'); cartStore.fetchCart() } catch { ElMessage.error('添加失败') }
+  // 列表商品是 SPU，必须先解析出真实 SKU ID 再加购（不能把商品 ID 当 SKU ID 传）
+  const skuId = await getDefaultSkuId(p.id)
+  if (!skuId) { ElMessage.warning('该商品暂无可用规格'); return }
+  try { await addItem({ skuId, quantity:1 }); ElMessage.success('已添加到购物车'); cartStore.fetchCart() } catch { ElMessage.error('添加失败') }
 }
 
 const fetchProducts = async () => {

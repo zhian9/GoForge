@@ -108,7 +108,6 @@ const menuGroups = [
     { path: '/users', label: '用户管理', icon: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>' },
     { path: '/products', label: '商品管理', icon: '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
     { path: '/skus', label: 'SKU管理', icon: '<rect x="2" y="2" width="20" height="20" rx="3"/><rect x="8" y="8" width="8" height="8" rx="1"/>' },
-    { path: '/inventory', label: '库存管理', icon: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M12 8v8M8 12h8"/>' },
   ]},
   { label: '交易流程', items: [
     { path: '/carts', label: '购物车管理', icon: '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>' },

@@ -59,6 +59,12 @@ BizRedis:
   PoolSize: 10
   MinIdleConns: 5
 
+# Kafka配置（支付成功/退款事件）
+Kafka:
+  Brokers:
+    - localhost:9092
+  Version: "2.8.0"
+
 # 支付配置
 Payment:
   WeChat:

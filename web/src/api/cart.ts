@@ -91,3 +91,23 @@ export const clearCart = (userId: number) => {
   })
 }
 
+// 选中/取消选中单个商品（持久化到后端）
+export const selectItem = (skuId: number, isSelected: number) => {
+  const userId = getCurrentUserId()
+  return request.post<{ code: number; message: string }>('/v1/cart/select', {
+    user_id: userId,
+    sku_id: skuId,
+    is_selected: isSelected,
+  })
+}
+
+// 批量选中/取消选中（持久化到后端）
+export const batchSelect = (skuIds: number[], isSelected: number) => {
+  const userId = getCurrentUserId()
+  return request.post<{ code: number; message: string }>('/v1/cart/select/batch', {
+    user_id: userId,
+    sku_ids: skuIds,
+    is_selected: isSelected,
+  })
+}
+

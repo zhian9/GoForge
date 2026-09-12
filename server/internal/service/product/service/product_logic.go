@@ -500,6 +500,7 @@ func (l *ProductLogic) ListSkus(ctx context.Context, req *ListSkusRequest) (*Lis
 				}
 
 				_ = l.skuRepo.Create(ctx, defaultSku) // 忽略重复创建错误（并发情况下）
+				l.ensureInventory(ctx, defaultSku.ID, defaultSku.Stock)
 
 				// 清理商品详情缓存，避免 SKU 列表和详情不一致
 				if l.cache != nil {
@@ -699,6 +700,10 @@ func (l *ProductLogic) CreateSku(ctx context.Context, req *CreateSkuRequest) (*C
 			_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixProductDetail, outSku.ProductID))
 			_ = l.cache.DeletePattern(ctx, cache.KeyPrefixProductList+"*")
 		}
+		// 同步初始化库存记录
+		if outSku != nil {
+			l.ensureInventory(ctx, outSku.ID, outSku.Stock)
+		}
 
 		return &CreateSkuResponse{Sku: outSku}, nil
 	}
@@ -811,6 +816,8 @@ func (l *ProductLogic) CreateSku(ctx context.Context, req *CreateSkuRequest) (*C
 		}
 		return nil, apperrors.NewInternalError("创建SKU失败: " + err.Error())
 	}
+	// 同步初始化库存记录
+	l.ensureInventory(ctx, sku.ID, sku.Stock)
 
 	// 清除缓存
 	if l.cache != nil {
@@ -824,6 +831,37 @@ func (l *ProductLogic) CreateSku(ctx context.Context, req *CreateSkuRequest) (*C
 	return &CreateSkuResponse{
 		Sku: sku,
 	}, nil
+}
+
+// ensureInventory 确保 SKU 有对应的库存记录并与 sku.stock 同步（创建或更新 SKU 时调用）
+func (l *ProductLogic) ensureInventory(ctx context.Context, skuID uint64, stock int) {
+	if l.db == nil || skuID == 0 {
+		return
+	}
+	var count int64
+	if err := l.db.WithContext(ctx).Table("inventory").Where("sku_id = ?", skuID).Count(&count).Error; err != nil {
+		return
+	}
+	now := time.Now()
+	if count == 0 {
+		// 创建库存记录
+		_ = l.db.WithContext(ctx).Table("inventory").Create(map[string]interface{}{
+			"sku_id":             skuID,
+			"total_stock":        stock,
+			"available_stock":    stock,
+			"locked_stock":       0,
+			"sold_stock":         0,
+			"low_stock_threshold": 10,
+			"created_at":         now,
+			"updated_at":         now,
+		}).Error
+	} else {
+		// 同步库存：total = sku.stock，available = total - sold - locked
+		_ = l.db.WithContext(ctx).Exec(
+			"UPDATE inventory SET total_stock = ?, available_stock = ? - sold_stock - locked_stock, updated_at = ? WHERE sku_id = ?",
+			stock, stock, now, skuID,
+		).Error
+	}
 }
 
 // UpdateSkuRequest 更新SKU请求
@@ -949,6 +987,10 @@ func (l *ProductLogic) UpdateSku(ctx context.Context, req *UpdateSkuRequest) (*U
 			_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixProductDetail, outSku.ProductID))
 			_ = l.cache.DeletePattern(ctx, cache.KeyPrefixProductList+"*")
 		}
+		// 同步库存记录
+		if outSku != nil {
+			l.ensureInventory(ctx, outSku.ID, outSku.Stock)
+		}
 
 		return &UpdateSkuResponse{Sku: outSku}, nil
 	}
@@ -1028,6 +1070,8 @@ func (l *ProductLogic) UpdateSku(ctx context.Context, req *UpdateSkuRequest) (*U
 		}
 		return nil, apperrors.NewInternalError("更新SKU失败: " + err.Error())
 	}
+	// 同步库存记录
+	l.ensureInventory(ctx, sku.ID, sku.Stock)
 
 	// 清除缓存
 	if l.cache != nil {

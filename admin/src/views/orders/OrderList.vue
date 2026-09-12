@@ -40,9 +40,10 @@
         <el-table-column label="时间" width="160">
           <template #default="{ row }">{{ fmtDate(row.createdAt ?? row.created_at) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <button class="tbl-btn" @click="handleView(row)">查看</button>
+            <button v-if="(row.status??0)===2" class="tbl-btn ship" @click="handleShip(row)">发货</button>
             <button v-if="(row.status??0)===1" class="tbl-btn del" @click="handleCancel(row)">取消</button>
           </template>
         </el-table-column>
@@ -90,7 +91,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getOrderList, getOrderDetail, cancelOrder, type Order } from '@/api/order'
+import { getOrderList, getOrderDetail, cancelOrder, shipOrder, type Order } from '@/api/order'
 import PageHeader from '@/components/PageHeader.vue'
 import DarkCard from '@/components/DarkCard.vue'
 import EditModal from '@/components/EditModal.vue'
@@ -125,6 +126,17 @@ const handleCancel = async (row: Order) => {
   try { await ElMessageBox.confirm('确定取消？', '提示', { type: 'warning' }); await cancelOrder(row.id); ElMessage.success('已取消'); fetchOrderList() }
   catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message) }
 }
+const handleShip = async (row: Order) => {
+  try {
+    const { value } = await ElMessageBox.prompt('物流公司编码（SF=顺丰 YTO=圆通 ZTO=中通 STO=申通 YD=韵达）', '发货', {
+      confirmButtonText: '发货', cancelButtonText: '取消', inputValue: 'SF',
+      inputPattern: /^[A-Za-z0-9]+$/, inputErrorMessage: '请输入物流公司编码',
+    })
+    await shipOrder(row.id, { company_code: value })
+    ElMessage.success('发货成功')
+    fetchOrderList()
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '发货失败') }
+}
 
 watch(searchStatus, () => handleSearch())
 onMounted(() => fetchOrderList())
@@ -149,6 +161,8 @@ onMounted(() => fetchOrderList())
 .tbl-btn:hover { background: rgba(0,245,255,.1); border-color: rgba(0,245,255,.2); }
 .tbl-btn.del { color: #F87171; }
 .tbl-btn.del:hover { background: rgba(248,113,113,.1); border-color: rgba(248,113,113,.2); }
+.tbl-btn.ship { color: #10B981; }
+.tbl-btn.ship:hover { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.2); }
 .pagination { margin-top: 20px; display: flex; justify-content: flex-end; }
 
 .info-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-bottom: 20px; }

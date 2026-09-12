@@ -174,6 +174,25 @@ func (s *OrderService) ConfirmReceive(ctx context.Context, req *v1.ConfirmReceiv
 	}, nil
 }
 
+// ShipOrder 发货
+func (s *OrderService) ShipOrder(ctx context.Context, req *v1.ShipOrderRequest) (*v1.ShipOrderResponse, error) {
+	shipReq := &service.ShipOrderRequest{
+		ID:          uint64(req.Id),
+		CompanyCode: req.CompanyCode,
+		LogisticsNo: req.LogisticsNo,
+	}
+
+	_, err := s.logic.ShipOrder(ctx, shipReq)
+	if err != nil {
+		return nil, convertError(err)
+	}
+
+	return &v1.ShipOrderResponse{
+		Code:    0,
+		Message: "发货成功",
+	}, nil
+}
+
 // convertError 转换业务错误为 gRPC 错误
 func convertError(err error) error {
 	if err == nil {

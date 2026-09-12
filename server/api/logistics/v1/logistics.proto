@@ -16,6 +16,8 @@ service LogisticsService {
     rpc QueryTracking (QueryTrackingRequest) returns (QueryTrackingResponse);
     // 计算运费
     rpc CalculateFreight (CalculateFreightRequest) returns (CalculateFreightResponse);
+    // 获取物流列表
+    rpc ListLogistics (ListLogisticsRequest) returns (ListLogisticsResponse);
 }
 
 // 物流信息
@@ -35,6 +37,9 @@ message Logistics {
     string sender_address = 13;
     string created_at = 14;
     string updated_at = 15;
+    string current_location = 16; // 当前位置
+    string shipped_at = 17; // 发货时间
+    string delivered_at = 18; // 送达时间
 }
 
 // 创建物流单请求
@@ -113,6 +118,21 @@ message CalculateFreightResponse {
     int32 code = 1;
     string message = 2;
     string freight = 3;
+}
+
+// 获取物流列表请求
+message ListLogisticsRequest {
+    int32 page = 1;
+    int32 page_size = 2;
+    string order_no = 3; // 可选，按订单号模糊查询
+}
+
+// 获取物流列表响应
+message ListLogisticsResponse {
+    int32 code = 1;
+    string message = 2;
+    repeated Logistics data = 3;
+    int64 total = 4;
 }
 
 

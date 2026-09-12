@@ -11,7 +11,7 @@
       <div class="search-bar">
         <el-input
           v-model="searchProductId"
-          placeholder="搜索商品ID"
+          placeholder="商品ID（留空查全部）"
           style="width: 200px; margin-right: 10px;"
           clearable
           @clear="handleSearch"
@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
@@ -118,23 +118,19 @@ const replyFormRules: FormRules = {
 }
 
 const fetchReviewList = async () => {
-  if (!searchProductId.value) {
-    ElMessage.warning('请输入商品ID')
-    return
-  }
-  
   loading.value = true
   try {
-    const productId = parseInt(searchProductId.value)
-    if (isNaN(productId)) {
+    // 留空 = 查询全部评价（product_id=0）
+    const productId = searchProductId.value ? parseInt(searchProductId.value) : 0
+    if (searchProductId.value && isNaN(productId)) {
       ElMessage.error('商品ID必须是数字')
       return
     }
-    
+
     const params: any = { page: 1, page_size: 100 }
     // proto: rating=0 表示全部
     params.rating = searchRating.value === null ? 0 : searchRating.value
-    
+
     const response = await getProductReviews(productId, params)
     if (response.code === 0) {
       // 后端返回：data 是数组
@@ -181,6 +177,10 @@ const handleReplySubmit = async () => {
     }
   })
 }
+
+onMounted(() => {
+  fetchReviewList()
+})
 </script>
 
 <style scoped>

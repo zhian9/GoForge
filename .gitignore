@@ -82,3 +82,15 @@ images/*
 __pycache__/
 *.pyc
 .claude/
+
+# ============================================
+# 面试准备文档（不提交到公开仓库）
+# ============================================
+PROJECT_DESIGN.md
+docs/MIDDLEWARE_DESIGN.md
+docs/SECKILL_PAYMENT_DESIGN.md
+docs/RESUME.md
+docs/GATEWAY_DEPLOYMENT.md
+
+# Vite 缓存
+.vite/

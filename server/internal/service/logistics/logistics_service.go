@@ -141,6 +141,32 @@ func (s *LogisticsService) CalculateFreight(ctx context.Context, req *v1.Calcula
 	}, nil
 }
 
+// ListLogistics 获取物流列表
+func (s *LogisticsService) ListLogistics(ctx context.Context, req *v1.ListLogisticsRequest) (*v1.ListLogisticsResponse, error) {
+	listReq := &service.ListLogisticsRequest{
+		Page:     int(req.Page),
+		PageSize: int(req.PageSize),
+		OrderNo:  req.OrderNo,
+	}
+
+	resp, err := s.logic.ListLogistics(ctx, listReq)
+	if err != nil {
+		return nil, convertError(err)
+	}
+
+	list := make([]*v1.Logistics, 0, len(resp.Logistics))
+	for _, lg := range resp.Logistics {
+		list = append(list, convertLogisticsToProto(lg))
+	}
+
+	return &v1.ListLogisticsResponse{
+		Code:    0,
+		Message: "成功",
+		Data:    list,
+		Total:   resp.Total,
+	}, nil
+}
+
 // convertError 转换业务错误为 gRPC 错误
 func convertError(err error) error {
 	if err == nil {
@@ -165,6 +191,10 @@ func convertLogisticsToProto(l *model.Logistics) *v1.Logistics {
 	if l.SenderAddress != nil {
 		senderAddress = *l.SenderAddress
 	}
+	var currentLocation string
+	if l.CurrentLocation != nil {
+		currentLocation = *l.CurrentLocation
+	}
 
 	return &v1.Logistics{
 		Id:              int64(l.ID),
@@ -182,6 +212,9 @@ func convertLogisticsToProto(l *model.Logistics) *v1.Logistics {
 		SenderAddress:   senderAddress,
 		CreatedAt:       formatTime(&l.CreatedAt),
 		UpdatedAt:       formatTime(&l.UpdatedAt),
+		CurrentLocation: currentLocation,
+		ShippedAt:       formatTime(l.ShippedAt),
+		DeliveredAt:     formatTime(l.DeliveredAt),
 	}
 }
 

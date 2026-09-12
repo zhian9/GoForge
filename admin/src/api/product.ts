@@ -59,7 +59,7 @@ export interface CreateProductRequest {
   subtitle?: string
   price: number
   original_price?: number
-  stock: number
+  stock?: number
   category_id: number
   brand_id?: number
   main_image?: string

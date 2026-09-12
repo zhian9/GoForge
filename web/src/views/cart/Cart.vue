@@ -95,7 +95,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
-import { updateQuantity, removeItem, clearCart } from '@/api/cart'
+import { updateQuantity, removeItem, clearCart, selectItem, batchSelect } from '@/api/cart'
 import type { CartItem } from '@/api/cart'
 
 const router = useRouter()
@@ -112,13 +112,16 @@ const selectedCount = computed(() => cartStore.cartItems.filter(i=>i.isSelected=
 const selectedTotal = computed(() => cartStore.cartItems.filter(i=>i.isSelected===1).reduce((s,i)=>s+i.price*i.quantity,0))
 const allSelected = computed(() => cartStore.cartItems.length>0 && cartStore.cartItems.every(i=>i.isSelected===1))
 
-const toggleSelectAll = () => {
+const toggleSelectAll = async () => {
   const newVal = allSelected.value ? 0 : 1
   cartStore.cartItems.forEach(i => i.isSelected = newVal)
+  try { await batchSelect(cartStore.cartItems.map(i => i.skuId), newVal) } catch { ElMessage.error('操作失败') }
 }
 
-const toggleItem = (item: CartItem) => {
-  item.isSelected = item.isSelected === 1 ? 0 : 1
+const toggleItem = async (item: CartItem) => {
+  const newVal = item.isSelected === 1 ? 0 : 1
+  item.isSelected = newVal
+  try { await selectItem(item.skuId, newVal) } catch { item.isSelected = newVal === 1 ? 0 : 1; ElMessage.error('操作失败') }
 }
 
 const changeQty = async (item: CartItem, delta: number) => {

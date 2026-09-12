@@ -94,9 +94,9 @@
             <div v-for="(k,i) in specKeys" :key="i" class="spec-row">
               <input v-model="specKeys[i]" placeholder="规格名" class="spec-input" @input="onSpecChange(i)" />
               <input v-model="specValues[i]" placeholder="规格值" class="spec-input" @input="onSpecChange(i)" />
-              <button class="spec-del" @click="removeSpec(i)">×</button>
+              <button type="button" class="spec-del" @click="removeSpec(i)">×</button>
             </div>
-            <button class="spec-add" @click="addSpec">+ 添加规格</button>
+            <button type="button" class="spec-add" @click="addSpec">+ 添加规格</button>
           </div>
         </el-form-item>
 

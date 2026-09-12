@@ -42,3 +42,20 @@ export const getSkuDetail = (id: number) => {
   return request.get<{ code: number; message: string; data: Sku }>(`/v1/skus/${id}`)
 }
 
+// 解析商品（SPU）的默认 SKU ID。
+// 优先取「上架且有库存」中价格最低的 SKU，与列表页展示的最低价保持一致。
+// 若该商品没有任何可用 SKU，返回 0。
+export const getDefaultSkuId = async (productId: number): Promise<number> => {
+  try {
+    const res = await getSkusByProductId(productId) as any
+    const list: any[] = Array.isArray(res?.data) ? res.data : (res?.data?.list || [])
+    const active = list.filter((s: any) => Number(s.status) === 1 && Number(s.stock) > 0)
+    const pool = active.length > 0 ? active : list
+    if (pool.length === 0) return 0
+    const cheapest = pool.reduce((min: any, s: any) => (Number(s.price) < Number(min.price) ? s : min), pool[0])
+    return Number(cheapest.id)
+  } catch {
+    return 0
+  }
+}
+

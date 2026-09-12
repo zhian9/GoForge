@@ -1,301 +1,155 @@
 <template>
-  <div class="logistics-list">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>物流管理</span>
-          <el-button type="primary" @click="handleAdd">创建物流单</el-button>
-        </div>
-      </template>
-      
-      <!-- 搜索栏 -->
-      <div class="search-bar">
-        <el-input
-          v-model="searchOrderNo"
-          placeholder="搜索订单号"
-          style="width: 200px; margin-right: 10px;"
-          clearable
-          @clear="handleSearch"
-          @keyup.enter="handleSearch"
-        />
-        <el-button type="primary" @click="handleSearch">查询</el-button>
-      </div>
+  <div class="logistics-page">
+    <PageHeader title="物流管理" desc="查看订单物流与轨迹" />
 
-      <el-table :data="logisticsList" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="order_no" label="订单号" width="180" />
-        <el-table-column prop="logistics_no" label="物流单号" width="180" />
-        <el-table-column prop="company_name" label="物流公司" width="150" />
-        <el-table-column prop="status" label="状态" width="120">
+    <!-- 搜索 -->
+    <div class="search-bar">
+      <div class="search-box">
+        <input v-model="searchOrderNo" type="text" placeholder="搜索订单号..." class="search-input" @keyup.enter="handleSearch" />
+      </div>
+      <button class="btn-search" @click="handleSearch">查询</button>
+    </div>
+
+    <!-- 表格 -->
+    <DarkCard v-loading="loading" no-pad>
+      <el-table :data="logisticsList" class="dark-table" stripe>
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="order_no" label="订单号" min-width="180" />
+        <el-table-column prop="logistics_no" label="物流单号" min-width="180" />
+        <el-table-column prop="company_name" label="物流公司" width="120" />
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
+            <span class="status-tag" :class="'ls-' + row.status">{{ statusText(row.status) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="receiver_name" label="收货人" width="120" />
-        <el-table-column prop="receiver_phone" label="收货电话" width="150" />
-        <el-table-column prop="receiver_address" label="收货地址" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column prop="receiver_name" label="收货人" width="100" />
+        <el-table-column label="当前位置" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.current_location || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="170">
+          <template #default="{ row }">{{ fmtDate(row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="success" size="small" @click="handleTracking(row)">物流轨迹</el-button>
-            <el-button type="warning" size="small" @click="handleUpdateStatus(row)">更新状态</el-button>
+            <button class="tbl-btn" @click="handleTracking(row)">轨迹</button>
+            <button class="tbl-btn ship" @click="handleUpdateStatus(row)">更新状态</button>
           </template>
         </el-table-column>
       </el-table>
-    </el-card>
+    </DarkCard>
 
-    <!-- 创建物流单对话框 -->
-    <el-dialog
-      v-model="createDialogVisible"
-      title="创建物流单"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="createFormRef"
-        :model="createFormData"
-        :rules="createFormRules"
-        label-width="100px"
-      >
-        <el-form-item label="订单ID" prop="order_id">
-          <el-input-number v-model="createFormData.order_id" :min="1" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="订单号" prop="order_no">
-          <el-input v-model="createFormData.order_no" />
-        </el-form-item>
-        <el-form-item label="物流公司" prop="company_code">
-          <el-select v-model="createFormData.company_code" style="width: 100%">
-            <el-option label="顺丰" value="SF" />
-            <el-option label="圆通" value="YTO" />
-            <el-option label="中通" value="ZTO" />
-            <el-option label="申通" value="STO" />
-            <el-option label="韵达" value="YD" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="收货人" prop="receiver_name">
-          <el-input v-model="createFormData.receiver_name" />
-        </el-form-item>
-        <el-form-item label="收货电话" prop="receiver_phone">
-          <el-input v-model="createFormData.receiver_phone" />
-        </el-form-item>
-        <el-form-item label="收货地址" prop="receiver_address">
-          <el-input v-model="createFormData.receiver_address" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateSubmit" :loading="submitting">创建</el-button>
-      </template>
-    </el-dialog>
+    <div class="pagination" v-if="total > 0">
+      <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50]" layout="total,sizes,prev,pager,next" @size-change="fetchList" @current-change="fetchList" />
+    </div>
 
-    <!-- 物流轨迹对话框 -->
-    <el-dialog
-      v-model="trackingDialogVisible"
-      title="物流轨迹"
-      width="700px"
-    >
-      <el-timeline>
-        <el-timeline-item
-          v-for="(item, index) in trackingList"
-          :key="index"
-          :timestamp="item.time"
-        >
-          {{ item.description }}
+    <!-- 物流轨迹弹窗 -->
+    <el-dialog v-model="trackingVisible" title="物流轨迹" width="640px">
+      <el-timeline v-if="trackingList.length">
+        <el-timeline-item v-for="(t, i) in trackingList" :key="i" :timestamp="fmtDate(t.time)" :type="i === 0 ? 'primary' : undefined">
+          <div class="track-node">
+            <div class="track-status">{{ t.status }}</div>
+            <div class="track-loc" v-if="t.location">{{ t.location }}</div>
+            <div class="track-remark" v-if="t.remark">{{ t.remark }}</div>
+          </div>
         </el-timeline-item>
       </el-timeline>
+      <el-empty v-else description="暂无轨迹" />
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import {
-  getLogistics,
-  createLogistics,
-  updateLogisticsStatus,
-  queryTracking,
-  type Logistics,
-  type TrackingInfo,
-} from '@/api/logistics'
+import { listLogistics, queryTracking, updateLogisticsStatus, type Logistics, type TrackingNode } from '@/api/logistics'
+import PageHeader from '@/components/PageHeader.vue'
+import DarkCard from '@/components/DarkCard.vue'
 
 const loading = ref(false)
 const logisticsList = ref<Logistics[]>([])
 const searchOrderNo = ref('')
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
-const createDialogVisible = ref(false)
-const trackingDialogVisible = ref(false)
-const submitting = ref(false)
-const createFormRef = ref<FormInstance>()
+const trackingVisible = ref(false)
+const trackingList = ref<TrackingNode[]>([])
 
-const createFormData = ref({
-  order_id: 0,
-  order_no: '',
-  company_code: '',
-  receiver_name: '',
-  receiver_phone: '',
-  receiver_address: '',
-})
+const statusMap: Record<number, string> = { 0: '待发货', 1: '已发货', 2: '运输中', 3: '已送达', 4: '异常' }
+const statusText = (s: number) => statusMap[s] || '未知'
 
-const trackingList = ref<TrackingInfo[]>([])
-
-const createFormRules: FormRules = {
-  order_id: [{ required: true, message: '请输入订单ID', trigger: 'blur' }],
-  order_no: [{ required: true, message: '请输入订单号', trigger: 'blur' }],
-  company_code: [{ required: true, message: '请选择物流公司', trigger: 'change' }],
-  receiver_name: [{ required: true, message: '请输入收货人', trigger: 'blur' }],
-  receiver_phone: [{ required: true, message: '请输入收货电话', trigger: 'blur' }],
-  receiver_address: [{ required: true, message: '请输入收货地址', trigger: 'blur' }],
+const fmtDate = (s: string) => {
+  if (!s) return '-'
+  try { return new Date(s).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) } catch { return s }
 }
 
-const getStatusType = (status: number) => {
-  const statusMap: Record<number, string> = {
-    0: 'info',    // 待发货
-    1: 'warning', // 已发货
-    2: 'success', // 运输中
-    3: 'success', // 已送达
-    4: 'danger',  // 异常
-  }
-  return statusMap[status] || ''
-}
-
-const getStatusText = (status: number) => {
-  const statusMap: Record<number, string> = {
-    0: '待发货',
-    1: '已发货',
-    2: '运输中',
-    3: '已送达',
-    4: '异常',
-  }
-  return statusMap[status] || '未知'
-}
-
-const fetchLogistics = async () => {
-  if (!searchOrderNo.value) {
-    ElMessage.warning('请输入订单号')
-    return
-  }
-  
+const fetchList = async () => {
   loading.value = true
   try {
-    // TODO: 需要后端支持按订单号查询，当前先按订单ID查询
-    const response = await getLogistics(parseInt(searchOrderNo.value))
-    if (response.code === 0) {
-      logisticsList.value = [response.data]
-    } else {
-      ElMessage.error(response.message || '获取物流信息失败')
+    const params: any = { page: page.value, page_size: pageSize.value }
+    if (searchOrderNo.value) params.order_no = searchOrderNo.value
+    const r = await listLogistics(params) as any
+    if (r.code === 0) {
+      logisticsList.value = r.data || []
+      total.value = Number(r.total || 0)
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取物流信息失败')
-  } finally {
-    loading.value = false
-  }
+  } catch { ElMessage.error('获取物流列表失败') } finally { loading.value = false }
 }
 
-const handleSearch = () => {
-  fetchLogistics()
-}
-
-const handleAdd = () => {
-  createFormData.value = {
-    order_id: 0,
-    order_no: '',
-    company_code: '',
-    receiver_name: '',
-    receiver_phone: '',
-    receiver_address: '',
-  }
-  createDialogVisible.value = true
-}
-
-const handleView = async (row: Logistics) => {
-  try {
-    const response = await getLogistics(row.order_id)
-    if (response.code === 0) {
-      ElMessageBox.alert(JSON.stringify(response.data, null, 2), '物流详情', {
-        confirmButtonText: '确定',
-      })
-    } else {
-      ElMessage.error(response.message || '获取物流详情失败')
-    }
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取物流详情失败')
-  }
-}
+const handleSearch = () => { page.value = 1; fetchList() }
 
 const handleTracking = async (row: Logistics) => {
   try {
-    const response = await queryTracking(row.logistics_no, row.company_code)
-    if (response.code === 0) {
-      trackingList.value = response.data.tracking || []
-      trackingDialogVisible.value = true
+    const r = await queryTracking(row.logistics_no) as any
+    if (r.code === 0) {
+      trackingList.value = Array.isArray(r.data) ? r.data : []
+      trackingVisible.value = true
     } else {
-      ElMessage.error(response.message || '查询物流轨迹失败')
+      ElMessage.error(r.message || '查询物流轨迹失败')
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '查询物流轨迹失败')
-  }
+  } catch (e: any) { ElMessage.error(e.message || '查询物流轨迹失败') }
 }
 
 const handleUpdateStatus = async (row: Logistics) => {
   try {
-    const { value: status } = await ElMessageBox.prompt('请输入新状态（0-待发货，1-已发货，2-运输中，3-已送达，4-异常）', '更新物流状态', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      inputPattern: /^[0-4]$/,
-      inputErrorMessage: '请输入0-4之间的数字',
+    const { value } = await ElMessageBox.prompt('新状态（0待发货 1已发货 2运输中 3已送达 4异常）', '更新物流状态', {
+      confirmButtonText: '确定', cancelButtonText: '取消',
+      inputPattern: /^[0-4]$/, inputErrorMessage: '请输入 0-4 之间的数字',
     })
-    
-    await updateLogisticsStatus(row.order_id, parseInt(status))
+    await updateLogisticsStatus(row.logistics_no, parseInt(value))
     ElMessage.success('更新成功')
-    fetchLogistics()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '更新失败')
-    }
-  }
+    fetchList()
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '更新失败') }
 }
 
-const handleCreateSubmit = async () => {
-  if (!createFormRef.value) return
-  
-  await createFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    
-    submitting.value = true
-    try {
-      await createLogistics(createFormData.value)
-      ElMessage.success('创建成功')
-      createDialogVisible.value = false
-      fetchLogistics()
-    } catch (error: any) {
-      ElMessage.error(error.message || '创建失败')
-    } finally {
-      submitting.value = false
-    }
-  })
-}
+onMounted(() => fetchList())
 </script>
 
 <style scoped>
-.logistics-list {
-  padding: 20px;
-}
+.logistics-page { padding: 0; }
+.search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+.search-box { position: relative; display: flex; align-items: center; flex: 1; max-width: 360px; }
+.search-input { width: 100%; padding: 10px 16px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); color: #EDF0F5; font-size: 13px; outline: none; transition: all .25s; font-family: inherit; }
+.search-input:focus { border-color: #00F5FF; box-shadow: 0 0 0 3px rgba(0,245,255,.08); }
+.btn-search { padding: 9px 20px; border-radius: 10px; border: none; background: #00F5FF; color: #0A0F1C; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.btn-search:hover { box-shadow: 0 0 20px rgba(0,245,255,.3); }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.status-tag { font-size: 11px; padding: 2px 10px; border-radius: 100px; font-weight: 600; }
+.ls-0 { background: rgba(255,255,255,.06); color: #8890A5; }
+.ls-1 { background: rgba(245,158,11,.12); color: #F59E0B; }
+.ls-2 { background: rgba(59,130,246,.12); color: #3B82F6; }
+.ls-3 { background: rgba(16,185,129,.12); color: #10B981; }
+.ls-4 { background: rgba(248,113,113,.12); color: #F87171; }
 
-.search-bar {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-}
+.tbl-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 12px; color: #00F5FF; transition: all .15s; }
+.tbl-btn:hover { background: rgba(0,245,255,.1); border-color: rgba(0,245,255,.2); }
+.tbl-btn.ship { color: #10B981; }
+.tbl-btn.ship:hover { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.2); }
+
+.pagination { margin-top: 20px; display: flex; justify-content: flex-end; }
+
+.track-node { display: flex; flex-direction: column; gap: 2px; }
+.track-status { font-size: 13px; font-weight: 600; color: #EDF0F5; }
+.track-loc { font-size: 12px; color: #8890A5; }
+.track-remark { font-size: 12px; color: #8890A5; }
 </style>
-

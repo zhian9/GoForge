@@ -98,7 +98,7 @@ func main() {
                                     }
                                 }
                             }
-                        };
+                        }; 
                     }
                 ],
                 layout: "StandaloneLayout",

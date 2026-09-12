@@ -16,6 +16,8 @@ type LogisticsRepository interface {
 	GetByLogisticsNo(ctx context.Context, logisticsNo string) (*model.Logistics, error)
 	// Update 更新物流信息
 	Update(ctx context.Context, logistics *model.Logistics) error
+	// List 分页查询物流列表
+	List(ctx context.Context, page, pageSize int, orderNo string) ([]*model.Logistics, int64, error)
 }
 
 type logisticsRepository struct {
@@ -55,4 +57,24 @@ func (r *logisticsRepository) GetByLogisticsNo(ctx context.Context, logisticsNo 
 // Update 更新物流信息
 func (r *logisticsRepository) Update(ctx context.Context, logistics *model.Logistics) error {
 	return r.db.WithContext(ctx).Save(logistics).Error
+}
+
+// List 分页查询物流列表
+func (r *logisticsRepository) List(ctx context.Context, page, pageSize int, orderNo string) ([]*model.Logistics, int64, error) {
+	query := r.db.WithContext(ctx).Model(&model.Logistics{})
+	if orderNo != "" {
+		query = query.Where("order_no LIKE ?", "%"+orderNo+"%")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var list []*model.Logistics
+	err := query.Order("id DESC").
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
+		Find(&list).Error
+	return list, total, err
 }

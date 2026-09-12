@@ -49,16 +49,18 @@ services:
     container_name: goforge-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-508065}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_forge}
+      MYSQL_USER: goforge
+      MYSQL_PASSWORD: ${DB_PASSWORD:-123456}
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ../../server/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ../../server/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-508065}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-508065}"]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -149,12 +151,13 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "*"
     ports:
       - "2181:2181"
     volumes:
       - zk-data:/var/lib/zookeeper/data
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181 | grep imok"]
+      test: ["CMD", "bash", "-c", "echo srvr | nc localhost 2181 | grep Zookeeper"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -247,6 +250,15 @@ services:
       redis: { condition: service_healthy }
       kafka: { condition: service_healthy }
       etcd:  { condition: service_healthy }
+
+  order-service-consumer:
+    <<: *micro
+    container_name: goforge-order-consumer
+    command: ["order-service-consumer"]
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
 
   payment-service:
     <<: *micro
@@ -399,9 +411,10 @@ services:
       context: ../..
       dockerfile: deploy/docker/admin.Dockerfile
     container_name: goforge-admin-builder
+    restart: "no"
     volumes:
-      - admin-dist:/dist
-    command: ["sh", "-c", "cp -r /dist/* /dist/ && echo done"]
+      - admin-dist:/out
+    command: ["sh", "-c", "rm -rf /out/* && cp -r /dist/. /out/ && echo done"]
 
   web-builder:
     <<: *common
@@ -410,9 +423,10 @@ services:
       context: ../..
       dockerfile: deploy/docker/web.Dockerfile
     container_name: goforge-web-builder
+    restart: "no"
     volumes:
-      - web-dist:/dist
-    command: ["sh", "-c", "cp -r /dist/* /dist/ && echo done"]
+      - web-dist:/out
+    command: ["sh", "-c", "rm -rf /out/* && cp -r /dist/. /out/ && echo done"]
 
   nginx:
     <<: *common
@@ -420,6 +434,7 @@ services:
     container_name: goforge-nginx
     ports:
       - "80:80"
+      - "8088:8088"
     volumes:
       - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - admin-dist:/app/admin/dist:ro

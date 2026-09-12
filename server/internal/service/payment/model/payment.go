@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// PaymentStatus 支付状态
+const (
+	PaymentStatusPending  int8 = 0 // 待支付
+	PaymentStatusSuccess  int8 = 1 // 支付成功
+	PaymentStatusFailed   int8 = 2 // 支付失败
+	PaymentStatusRefunded int8 = 3 // 已退款
+)
+
 // Payment 支付单模型
 type Payment struct {
 	ID                 uint64     `gorm:"primaryKey;column:id" json:"id"`
@@ -26,7 +34,7 @@ type Payment struct {
 
 // TableName 指定表名
 func (Payment) TableName() string {
-	return "payment-service"
+	return "payment"
 }
 
 // PaymentLog 支付流水模型

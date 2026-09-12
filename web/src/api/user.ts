@@ -71,6 +71,14 @@ export const getUserInfo = (userId?: number) => {
   })
 }
 
+// 每日签到
+export const signIn = (userId: number) => {
+  return request.post<{ code: number; message: string; addedPoints?: number; totalPoints?: number }>(
+    '/v1/user/signin',
+    { user_id: userId }
+  )
+}
+
 // 更新用户信息
 export const updateUserInfo = (data: {
   nickname?: string; gender?: number; avatar?: string; birthday?: string; phone?: string; email?: string

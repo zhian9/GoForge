@@ -105,7 +105,7 @@ func (u *UserLogic) Register(ctx context.Context, req *RegisterRequest) (*Regist
 		Username:    req.Username,
 		Status:      constants.UserStatusNormal,
 		MemberLevel: constants.MemberLevelNormal,
-		Points:      0,
+		Points:      100, // 注册赠送 100 积分
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -143,6 +143,60 @@ func (u *UserLogic) Register(ctx context.Context, req *RegisterRequest) (*Regist
 		Username: user.Username,
 		User:     user,
 	}, nil
+}
+
+// SignInRequest 签到请求
+type SignInRequest struct {
+	UserID uint64
+}
+
+// SignInResponse 签到响应
+type SignInResponse struct {
+	AddedPoints int
+	TotalPoints int
+}
+
+// SignIn 每日签到（+10 积分，每天一次）
+func (u *UserLogic) SignIn(ctx context.Context, req *SignInRequest) (*SignInResponse, error) {
+	if req.UserID == 0 {
+		return nil, errors.NewInvalidParamError("用户ID不能为空")
+	}
+
+	user, err := u.userRepo.GetByID(ctx, req.UserID)
+	if err != nil {
+		return nil, errors.NewInternalError("查询用户失败: " + err.Error())
+	}
+	if user == nil {
+		return nil, errors.NewError(errors.CodeUserNotFound, "用户不存在")
+	}
+
+	const signInBonus = 10
+	if u.cache != nil {
+		today := time.Now().Format("20060102")
+		signKey := fmt.Sprintf("sign:user:%d:%s", req.UserID, today)
+		exists, _ := u.cache.Exists(ctx, signKey)
+		if exists {
+			return nil, errors.NewError(errors.CodeAlreadyExists, "今日已签到")
+		}
+
+		user.Points += signInBonus
+		if err := u.userRepo.Update(ctx, user); err != nil {
+			return nil, errors.NewInternalError("签到失败: " + err.Error())
+		}
+
+		now := time.Now()
+		endOfDay := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+		_ = u.cache.Set(ctx, signKey, "1", endOfDay.Sub(now))
+		// 积分变化，清理用户信息缓存
+		_ = u.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixUserInfo, req.UserID))
+	} else {
+		user.Points += signInBonus
+		if err := u.userRepo.Update(ctx, user); err != nil {
+			return nil, errors.NewInternalError("签到失败: " + err.Error())
+		}
+	}
+
+	return &SignInResponse{AddedPoints: signInBonus, TotalPoints: user.Points}, nil
 }
 
 // LoginRequest 登录请求

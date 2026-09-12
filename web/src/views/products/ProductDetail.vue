@@ -288,8 +288,11 @@ const switchTab = (key:string) => { activeTab.value=key; if(key==='reviews') fet
 const addToCart = async () => {
   if(!userStore.token){ElMessage.warning('请先登录');router.push('/login');return}
   if(!product.value) return
+  // 必须以真实的 SKU ID 为准；若拿不到 SKU，不能把商品 ID 当成 SKU ID 传给后端，否则会串到其它商品
+  const skuId = selectedSku.value?.id
+  if(!skuId){ElMessage.warning('暂无可用规格');return}
   adding.value=true
-  try{await addItem({skuId:selectedSku.value?.id??product.value.id,quantity:quantity.value});ElMessage.success('已添加到购物车');cartStore.fetchCart()}
+  try{await addItem({skuId,quantity:quantity.value});ElMessage.success('已添加到购物车');cartStore.fetchCart()}
   catch(e:any){ElMessage.error(e.message||'添加失败')}
   finally{adding.value=false}
 }
@@ -297,7 +300,8 @@ const addToCart = async () => {
 const buyNow = async () => {
   if(!userStore.token){ElMessage.warning('请先登录');router.push('/login');return}
   if(!product.value) return
-  const id = selectedSku.value?.id??product.value.id
+  const id = selectedSku.value?.id
+  if(!id){ElMessage.warning('暂无可用规格');return}
   try{await addItem({skuId:id,quantity:quantity.value});router.push({path:'/orders/create',query:{sku_id:id.toString(),quantity:quantity.value.toString()}})}
   catch(e:any){ElMessage.error(e.message||'操作失败')}
 }

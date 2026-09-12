@@ -52,7 +52,7 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 	stockKey := fmt.Sprintf("seckill:stock:%d", req.SkuId)
 	userKey := fmt.Sprintf("seckill:user:%d:%d", req.SkuId, req.UserId)
 
-	result, err := cache.ExecuteLuaScript(ctx, s.svcCtx.Redis, cache.LuaScriptSeckill, []string{stockKey, userKey})
+	result, err := cache.ExecuteLuaScript(ctx, s.svcCtx.Redis, cache.LuaScriptSeckill, []string{stockKey, userKey}, quantity)
 	if err != nil {
 		logx.Errorf("执行秒杀Lua脚本失败: %v", err)
 		return nil, status.Error(codes.Internal, "秒杀失败，请稍后重试")
@@ -66,8 +66,8 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 	}
 
 	//处理结果
-	switch code {
-	case -1:
+	switch {
+	case code == -1:
 		//库存不足
 		return &v1.SeckillResponse{
 			Code:    1,
@@ -77,7 +77,7 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 				Message: "商品已抢光，请关注下次活动",
 			},
 		}, nil
-	case -2:
+	case code == -2:
 		//重复抢购
 		return &v1.SeckillResponse{
 			Code:    1,
@@ -87,7 +87,7 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 				Message: "您已参加过本次秒杀活动",
 			},
 		}, nil
-	case 1:
+	case code >= 0:
 		//成功 :发送kafka消息
 		seckillMsg := map[string]interface{}{
 			"user_id":   req.UserId,

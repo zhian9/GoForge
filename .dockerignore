@@ -1,0 +1,13 @@
+.git/
+.gitignore
+.idea/
+.vscode/
+.env
+.env.local
+**/node_modules/
+**/bin/
+**/logs/
+**/uploads/
+**/*.exe
+**/*_test.go
+web/.vite/

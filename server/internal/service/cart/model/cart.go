@@ -22,5 +22,5 @@ type Cart struct {
 
 // TableName 指定表名
 func (Cart) TableName() string {
-	return "cart-service"
+	return "cart"
 }

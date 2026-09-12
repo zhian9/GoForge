@@ -41,7 +41,11 @@ func main() {
 		svcCtx.OrderRepo,
 		svcCtx.OrderItemRepo,
 		svcCtx.DB,
+		svcCtx.Cache,
 	)
+
+	// 创建支付结果消费者
+	paymentConsumer := orderService.NewPaymentConsumer(svcCtx.OrderRepo, svcCtx.DB, svcCtx.Cache)
 
 	// 创建Kafka消费者（重试机制）
 	consumerConfig := &mq.Config{
@@ -78,6 +82,12 @@ func main() {
 	consumer.RegisterHandler(mq.TopicSeckillOrder, func(ctx context.Context, message *mq.Message) error {
 		return seckillConsumer.Consume(ctx, message)
 	})
+	consumer.RegisterHandler(mq.TopicPaymentSuccess, func(ctx context.Context, message *mq.Message) error {
+		return paymentConsumer.ConsumePaymentSuccess(ctx, message)
+	})
+	consumer.RegisterHandler(mq.TopicPaymentRefunded, func(ctx context.Context, message *mq.Message) error {
+		return paymentConsumer.ConsumePaymentRefund(ctx, message)
+	})
 
 	// 创建上下文
 	ctx, cancel := context.WithCancel(context.Background())
@@ -89,7 +99,7 @@ func main() {
 
 	// 启动消费者（在goroutine中）
 	go func() {
-		if err := consumer.Start(ctx, []string{mq.TopicSeckillOrder}); err != nil {
+		if err := consumer.Start(ctx, []string{mq.TopicSeckillOrder, mq.TopicPaymentSuccess, mq.TopicPaymentRefunded}); err != nil {
 			logx.Errorf("启动Kafka消费者失败: %v", err)
 			cancel()
 		}

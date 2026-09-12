@@ -122,6 +122,7 @@ import { getProductList } from '@/api/product'
 import { getCategoryTree } from '@/api/category'
 import { listSeckillActivities, type SeckillActivity } from '@/api/seckill'
 import { addItem } from '@/api/cart'
+import { getDefaultSkuId } from '@/api/sku'
 import type { Product } from '@/api/product'
 import type { Category } from '@/api/category'
 
@@ -154,8 +155,11 @@ const seckillPercent = (act: SeckillActivity) => {
 // 加购
 const addToCart = async (p: Product) => {
   if (!userStore.token) { ElMessage.warning('请先登录'); router.push('/login'); return }
+  // 首页商品是 SPU，必须先解析出真实 SKU ID 再加购（不能把商品 ID 当 SKU ID 传）
+  const skuId = await getDefaultSkuId(p.id)
+  if (!skuId) { ElMessage.warning('该商品暂无可用规格'); return }
   try {
-    await addItem({ skuId: p.id, quantity: 1 })
+    await addItem({ skuId, quantity: 1 })
     ElMessage.success('已添加到购物车')
     cartStore.fetchCart()
   } catch { ElMessage.error('添加失败') }
@@ -182,7 +186,7 @@ const fetchCategories = async () => {
   try { const r = await getCategoryTree({status:-1}) as any; if (r.code===0&&r.data) mainCategories.value = r.data } catch {}
 }
 const fetchSeckill = async () => {
-  try { const r = await listSeckillActivities({page:1,page_size:6,status:1}) as any; seckillActivities.value = r?.list || [] } catch {}
+  try { const r = await listSeckillActivities({page:1,page_size:6,status:1}) as any; seckillActivities.value = r?.data?.list || [] } catch {}
 }
 const fetchHot = async (categoryId: number) => {
   try {

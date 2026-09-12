@@ -94,3 +94,8 @@ export const cancelOrder = (id: number, reason?: string) => {
   return request.put<{ code: number; message: string }>(`/v1/orders/${id}/cancel`, { reason })
 }
 
+// 确认收货
+export const confirmReceive = (id: number) => {
+  return request.put<{ code: number; message: string }>(`/v1/orders/${id}/receive`, {})
+}
+

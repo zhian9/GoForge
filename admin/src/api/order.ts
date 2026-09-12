@@ -62,3 +62,8 @@ export const updateOrderStatus = (id: number, status: number) => {
   return request.put<{ code: number; message: string; data: Order }>(`/v1/orders/${id}`, { status })
 }
 
+// 发货
+export const shipOrder = (id: number, data?: { company_code?: string; logistics_no?: string }) => {
+  return request.post<{ code: number; message: string }>(`/v1/orders/${id}/ship`, data || {})
+}
+

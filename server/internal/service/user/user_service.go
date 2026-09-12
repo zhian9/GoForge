@@ -366,6 +366,31 @@ func (s *UserService) DeleteAddress(ctx context.Context, req *v1.DeleteAddressRe
 	}, nil
 }
 
+// SignIn 每日签到
+func (s *UserService) SignIn(ctx context.Context, req *v1.SignInRequest) (*v1.SignInResponse, error) {
+	signInReq := &userservice.SignInRequest{
+		UserID: uint64(req.UserId),
+	}
+
+	resp, err := s.logic.SignIn(ctx, signInReq)
+	if err != nil {
+		if bizErr, ok := err.(*apperrors.BusinessError); ok {
+			return &v1.SignInResponse{
+				Code:    int32(bizErr.Code),
+				Message: bizErr.Message,
+			}, nil
+		}
+		return nil, convertError(err)
+	}
+
+	return &v1.SignInResponse{
+		Code:        0,
+		Message:     "签到成功",
+		AddedPoints: int32(resp.AddedPoints),
+		TotalPoints: int32(resp.TotalPoints),
+	}, nil
+}
+
 // convertError 转换业务错误为 gRPC 错误
 func convertError(err error) error {
 	if err == nil {

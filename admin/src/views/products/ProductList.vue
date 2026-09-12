@@ -44,7 +44,6 @@
         <el-table-column label="原价" width="90">
           <template #default="{ row }"><span class="text-original" v-if="row.original_price">¥{{ fmt(row.original_price) }}</span></template>
         </el-table-column>
-        <el-table-column prop="stock" label="库存" width="70" />
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-switch :model-value="row.status" :active-value="1" :inactive-value="0" @change="(v:number)=>handleStatusChange(row,v)" :loading="row.statusUpdating" inline-prompt active-text="上架" inactive-text="下架" size="small" />
@@ -77,9 +76,8 @@
         <el-form-item label="商品名称" prop="name"><el-input v-model="formData.name" maxlength="100" /></el-form-item>
         <el-form-item label="商品描述"><el-input v-model="formData.description" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
         <el-row :gutter="16">
-          <el-col :span="8"><el-form-item label="价格" prop="price"><el-input-number v-model="formData.price" :min="0.01" :precision="2" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="原价"><el-input-number v-model="formData.original_price" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="库存" prop="stock"><el-input-number v-model="formData.stock" :min="0" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="价格" prop="price"><el-input-number v-model="formData.price" :min="0.01" :precision="2" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="原价"><el-input-number v-model="formData.original_price" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -131,7 +129,7 @@ const searchKeyword = ref(''); const searchCategory = ref<number|null>(null)
 const categoryTree = ref<Category[]>([]); const userStore = useUserStore()
 const dialogVisible = ref(false); const dialogTitle = ref('新增商品'); const isEdit = ref(false)
 const submitting = ref(false); const currentProductId = ref<number>(0); const formRef = ref<FormInstance>()
-const formData = ref<CreateProductRequest & { images?: string[]; local_images?: string[]; description?: string }>({ name:'',description:'',price:0,original_price:0,stock:0,category_id:0,status:1,is_hot:0,images:[],local_images:[] })
+const formData = ref<CreateProductRequest & { images?: string[]; local_images?: string[]; description?: string }>({ name:'',description:'',price:0,original_price:0,category_id:0,status:1,is_hot:0,images:[],local_images:[] })
 
 const uploadAction = computed(() => 'http://localhost:8080/api/v1/files/upload')
 const uploadHeaders = computed(() => ({ Authorization: userStore.token ? `Bearer ${userStore.token}` : '' }))
@@ -149,7 +147,6 @@ const getCategoryNameById = (id: number|null|undefined) => {
 const formRules: FormRules = {
   name: [{ required: true, message: '请输入商品名称', trigger: 'blur' }],
   price: [{ required: true, message: '请输入价格', trigger: 'blur' }],
-  stock: [{ required: true, message: '请输入库存', trigger: 'blur' }],
   category_id: [{ required: true, message: '请选择分类', trigger: 'change' }, { validator: (_r:any, v:any, cb:any) => { if (!v || v===0 || v==='0') cb(new Error('请选择分类')); else cb() }, trigger: 'change' }],
 }
 
@@ -178,12 +175,12 @@ const handleImageUploadSuccess = (res:any, file:File) => uploadPic(res, file, (u
 
 const removeImage = (i:number) => { formData.value.images?.splice(i,1); formData.value.local_images?.splice(i,1); formData.value.images=[...(formData.value.images||[])]; formData.value.local_images=[...(formData.value.local_images||[])] }
 
-const handleAdd = () => { isEdit.value=false; dialogTitle.value='新增商品'; currentProductId.value=0; formData.value={ name:'',description:'',price:0,original_price:0,stock:0,category_id:0,status:1,is_hot:0,images:[],local_images:[] }; dialogVisible.value=true }
+const handleAdd = () => { isEdit.value=false; dialogTitle.value='新增商品'; currentProductId.value=0; formData.value={ name:'',description:'',price:0,original_price:0,category_id:0,status:1,is_hot:0,images:[],local_images:[] }; dialogVisible.value=true }
 const handleEdit = (row: any) => {
   isEdit.value=true; dialogTitle.value='编辑商品'; currentProductId.value=row.id
   const imgs = Array.isArray(row.images) ? row.images : (typeof row.images==='string'?JSON.parse(row.images||'[]'):[])
   const limgs = Array.isArray(row.local_images) ? row.local_images : (typeof row.local_images==='string'?JSON.parse(row.local_images||'[]'):[])
-  formData.value = { name:row.name, description:row.description||'', detail:row.detail||'', price:row.price, original_price:row.original_price||0, stock:row.stock, category_id:Number(row.category_id||0), status:row.status, is_hot:row.is_hot||0, main_image:row.main_image||'', local_main_image:row.local_main_image||'', images:imgs, local_images:limgs }
+  formData.value = { name:row.name, description:row.description||'', detail:row.detail||'', price:row.price, original_price:row.original_price||0, category_id:Number(row.category_id||0), status:row.status, is_hot:row.is_hot||0, main_image:row.main_image||'', local_main_image:row.local_main_image||'', images:imgs, local_images:limgs }
   dialogVisible.value=true
 }
 const handleDelete = async (row: Product) => {
@@ -200,7 +197,6 @@ const handleSubmit = async () => {
       const data: any = { name:formData.value.name, price:formData.value.price, category_id:cid, status:formData.value.status||1, is_hot:formData.value.is_hot||0, main_image:formData.value.main_image||'', local_main_image:formData.value.local_main_image||'', images:Array.isArray(formData.value.images)?formData.value.images:[], local_images:Array.isArray(formData.value.local_images)?formData.value.local_images:[] }
       if (formData.value.description) { data.detail = formData.value.description; data.description = formData.value.description }
       if (formData.value.original_price>0) data.original_price = formData.value.original_price
-      if (formData.value.stock>=0) data.stock = formData.value.stock
       if (isEdit.value) { await updateProduct(currentProductId.value, data); ElMessage.success('已更新') }
       else { await createProduct(data); ElMessage.success('已创建') }
       dialogVisible.value=false; await fetchCategoryTree(); fetchProductList()
@@ -265,4 +261,5 @@ onMounted(() => { fetchCategoryTree().then(()=>fetchProductList()).catch(()=>fet
 .img-item:hover .img-remove { opacity: 1; }
 .grid-upload { width: 100px; height: 100px; background: rgba(255,255,255,.02); border: 1px dashed rgba(255,255,255,.1); border-radius: 8px; color: #8890A5; }
 .grid-upload svg { width: 24px; height: 24px; }
+.stock-hint { margin: 0 0 16px; color: #8890A5; font-size: 12px; line-height: 1.6; }
 </style>

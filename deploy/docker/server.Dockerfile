@@ -17,7 +17,8 @@ RUN set -e; \
     for svc in user product order payment inventory cart promotion review logistics message search recommend file job seckill; do \
       go build -ldflags="-s -w" -o "bin/${svc}-service" "./cmd/${svc}-service"; \
     done; \
-    go build -ldflags="-s -w" -o bin/api-gateway ./cmd/api-gateway
+    go build -ldflags="-s -w" -o bin/api-gateway ./cmd/api-gateway; \
+    go build -ldflags="-s -w" -o bin/order-service-consumer ./cmd/order-service-consumer
 
 FROM alpine:3.21
 

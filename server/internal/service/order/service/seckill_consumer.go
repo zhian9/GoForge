@@ -9,6 +9,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
 
+	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
 	"github.com/zhian9/GoForge/server/internal/service/order/model"
 	"github.com/zhian9/GoForge/server/internal/service/order/repository"
@@ -36,14 +37,16 @@ type SeckillConsumer struct {
 	orderRepo     repository.OrderRepository
 	orderItemRepo repository.OrderItemRepository
 	db            *gorm.DB
+	cache         *cache.CacheOperations
 }
 
 // NewSeckillConsumer 创建秒杀消费者
-func NewSeckillConsumer(orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository, db *gorm.DB) *SeckillConsumer {
+func NewSeckillConsumer(orderRepo repository.OrderRepository, orderItemRepo repository.OrderItemRepository, db *gorm.DB, cacheOps *cache.CacheOperations) *SeckillConsumer {
 	return &SeckillConsumer{
 		orderRepo:     orderRepo,
 		orderItemRepo: orderItemRepo,
 		db:            db,
+		cache:         cacheOps,
 	}
 }
 
@@ -154,6 +157,11 @@ func (c *SeckillConsumer) Consume(ctx context.Context, message *mq.Message) erro
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	// 扣减库存（sku.stock + inventory）
+	if err := deductStock(ctx, c.db, c.cache, uint64(seckillMsg.SkuID), seckillMsg.Quantity); err != nil {
+		logx.Errorf("秒杀订单扣减库存失败 sku_id=%d: %v", seckillMsg.SkuID, err)
 	}
 
 	logx.Infof("秒杀订单创建成功: order_no=%s, user_id=%d, sku_id=%d",

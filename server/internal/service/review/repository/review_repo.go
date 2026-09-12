@@ -74,8 +74,12 @@ func (r *reviewRepository) GetByProductID(ctx context.Context, productID uint64,
 	var reviews []*model.Review
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&model.Review{}).Where("product_id = ? AND status = ?", productID, 1)
+	query := r.db.WithContext(ctx).Model(&model.Review{}).Where("status = ?", 1)
 
+	// productID=0 表示查询全部商品
+	if productID > 0 {
+		query = query.Where("product_id = ?", productID)
+	}
 	if rating > 0 {
 		query = query.Where("rating = ?", rating)
 	}

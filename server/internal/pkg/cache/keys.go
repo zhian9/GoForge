@@ -34,6 +34,7 @@ const (
 	// 支付相关
 	KeyPrefixPaymentInfo = "payment:info:" // payment:info:{payment_no}
 	KeyPrefixPaymentLock = "payment:lock:" // payment:lock:{order_id}
+	KeyPrefixPaymentSeq  = "payment:seq:"  // payment:seq:{date}
 
 	// 营销相关
 	KeyPrefixCouponInfo   = "coupon:info:"   // coupon:info:{coupon_id}

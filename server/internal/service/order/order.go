@@ -115,6 +115,7 @@ func NewOrderService(svcCtx *ServiceContext) *OrderService {
 			svcCtx.OrderLogRepo,
 			svcCtx.Cache,
 			svcCtx.MQProducer,
+			svcCtx.DB,
 		)
 	}
 

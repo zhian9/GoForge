@@ -166,7 +166,7 @@ const submitReview = async () => {
   finally{reviewSubmitting.value=false}
 }
 
-const handlePay = (order:Order) => router.push(`/orders/${order.id}/pay`)
+const handlePay = (order:Order) => router.push(`/pay/${order.id}`)
 const handleCancel = async (order:Order) => {
   try{await ElMessageBox.confirm('确定取消该订单？','提示',{type:'warning'});await cancelOrder(order.id);ElMessage.success('已取消');fetchOrders()}
   catch(e:any){if(e!=='cancel')ElMessage.error(e.message||'取消失败')}

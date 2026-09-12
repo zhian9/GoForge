@@ -3,14 +3,19 @@ package service
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/order/model"
 	"github.com/zhian9/GoForge/server/internal/service/order/repository"
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/metadata"
+	"gorm.io/gorm"
 )
 
 // OrderLogic 订单业务逻辑
@@ -20,6 +25,7 @@ type OrderLogic struct {
 	orderLogRepo  repository.OrderLogRepository
 	cache         *cache.CacheOperations
 	mqProducer    *mq.Producer
+	db            *gorm.DB
 }
 
 // NewOrderLogic 创建订单业务逻辑
@@ -29,6 +35,7 @@ func NewOrderLogic(
 	orderLogRepo repository.OrderLogRepository,
 	cache *cache.CacheOperations,
 	mqProducer *mq.Producer,
+	db *gorm.DB,
 ) *OrderLogic {
 	return &OrderLogic{
 		orderRepo:     orderRepo,
@@ -36,6 +43,7 @@ func NewOrderLogic(
 		orderLogRepo:  orderLogRepo,
 		cache:         cache,
 		mqProducer:    mqProducer,
+		db:            db,
 	}
 }
 
@@ -109,7 +117,7 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 
 	// 新订单创建后，清理该用户订单列表缓存，避免列表不刷新
 	if l.cache != nil {
-		_ = l.cache.DeletePattern(ctx, fmt.Sprintf("%s%d:*", cache.KeyPrefixOrderList, order.UserID))
+		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
 	}
 
 	// 5. 创建订单商品项（简化实现）
@@ -132,6 +140,13 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 
 	if err := l.orderItemRepo.CreateBatch(ctx, items); err != nil {
 		return nil, apperrors.NewInternalError("创建订单商品项失败: " + err.Error())
+	}
+
+	// 扣减库存（sku.stock 为唯一真源，inventory 同步）
+	for _, itemReq := range req.Items {
+		if err := deductStock(ctx, l.db, l.cache, itemReq.SkuID, itemReq.Quantity); err != nil {
+			return nil, apperrors.NewInternalError("扣减库存失败: " + err.Error())
+		}
 	}
 
 	// 6. 记录订单日志
@@ -376,12 +391,26 @@ func (l *OrderLogic) CancelOrder(ctx context.Context, req *CancelOrderRequest) (
 		return nil, apperrors.NewInternalError("取消订单失败: " + err.Error())
 	}
 
+	// 回增库存：取消待支付订单时释放已扣减的 sku.stock / inventory
+	items, err := l.orderItemRepo.GetByOrderID(ctx, order.ID)
+	if err != nil {
+		return nil, apperrors.NewInternalError("查询订单商品项失败: " + err.Error())
+	}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		if err := restockStock(ctx, l.db, l.cache, item.SkuID, item.Quantity); err != nil {
+			return nil, apperrors.NewInternalError("回增库存失败: " + err.Error())
+		}
+	}
+
 	// 删除缓存
 	if l.cache != nil {
 		detailKey := cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID)
 		_ = l.cache.Delete(ctx, detailKey)
 		// 删除该用户所有订单列表缓存（避免取消后列表还是“待支付”，导致再次取消报 403）
-		_ = l.cache.DeletePattern(ctx, fmt.Sprintf("%s%d:*", cache.KeyPrefixOrderList, order.UserID))
+		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
 	}
 
 	// 记录订单日志
@@ -409,6 +438,120 @@ func (l *OrderLogic) CancelOrder(ctx context.Context, req *CancelOrderRequest) (
 	return &CancelOrderResponse{
 		Success: true,
 	}, nil
+}
+
+// 物流公司编码 -> 名称映射（发货时使用）
+var logisticsCompanyMap = map[string]string{
+	"SF": "顺丰速运", "YTO": "圆通速递", "ZTO": "中通快递", "STO": "申通快递", "YD": "韵达快递",
+	"JD": "京东物流", "YZ": "邮政EMS",
+}
+
+// jwtSecret 与网关/其他服务保持一致
+const jwtSecret = "goforge-jwt-secret"
+
+// checkAdmin 校验当前调用者是否为管理员（发货等管理操作使用）
+func (l *OrderLogic) checkAdmin(ctx context.Context) error {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return apperrors.NewError(apperrors.CodeUnauthorized, "未授权")
+	}
+	authHeaders := md.Get("authorization")
+	if len(authHeaders) == 0 {
+		authHeaders = md.Get("gateway-authorization")
+	}
+	if len(authHeaders) == 0 {
+		return apperrors.NewError(apperrors.CodeUnauthorized, "请先登录")
+	}
+
+	token := strings.TrimSpace(strings.TrimPrefix(authHeaders[0], "Bearer "))
+	claims, err := utils.ParseToken(token, jwtSecret)
+	if err != nil {
+		return apperrors.NewError(apperrors.CodeUnauthorized, "登录已过期，请重新登录")
+	}
+
+	if l.db == nil {
+		return apperrors.NewError(apperrors.CodeForbidden, "无权限操作")
+	}
+	var isAdmin int8
+	if err := l.db.WithContext(ctx).Table("user").Select("is_admin").Where("id = ?", claims.UserID).Scan(&isAdmin).Error; err != nil {
+		return apperrors.NewInternalError("校验权限失败")
+	}
+	if isAdmin != 1 {
+		return apperrors.NewError(apperrors.CodeForbidden, "无权限操作，仅管理员可发货")
+	}
+	return nil
+}
+
+// ShipOrderRequest 发货请求
+type ShipOrderRequest struct {
+	ID          uint64
+	CompanyCode string
+	LogisticsNo string
+}
+
+// ShipOrderResponse 发货响应
+type ShipOrderResponse struct {
+	Success bool
+}
+
+// ShipOrder 发货：订单 待发货 -> 待收货，并创建物流单（直接写 logistics 表）
+func (l *OrderLogic) ShipOrder(ctx context.Context, req *ShipOrderRequest) (*ShipOrderResponse, error) {
+	// 管理员鉴权
+	if err := l.checkAdmin(ctx); err != nil {
+		return nil, err
+	}
+
+	order, err := l.orderRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		return nil, apperrors.NewInternalError("查询订单失败: " + err.Error())
+	}
+	if order == nil {
+		return nil, apperrors.NewError(apperrors.CodeOrderNotFound, "订单不存在")
+	}
+	if order.Status != model.OrderStatusPaid {
+		return nil, apperrors.NewError(apperrors.CodeForbidden, "只能对待发货订单执行发货")
+	}
+
+	companyCode := req.CompanyCode
+	if companyCode == "" {
+		companyCode = "EXP"
+	}
+	companyName := logisticsCompanyMap[companyCode]
+	if companyName == "" {
+		companyName = companyCode
+	}
+	logisticsNo := req.LogisticsNo
+	if logisticsNo == "" {
+		logisticsNo = fmt.Sprintf("%s%s%06d", companyCode, time.Now().Format("20060102150405"), rand.Intn(1000000))
+	}
+
+	now := time.Now()
+	nowStr := now.Format(time.RFC3339)
+
+	// 创建物流单（已发货状态，轨迹首节点「已发货」）
+	if l.db != nil {
+		trackingJSON := fmt.Sprintf(`[{"time":"%s","status":"已发货","remark":"商品已发出"}]`, nowStr)
+		insertErr := l.db.WithContext(ctx).Exec(
+			"INSERT INTO logistics (order_id, order_no, logistics_company, logistics_no, receiver_name, receiver_phone, receiver_address, status, tracking_info, shipped_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+			order.ID, order.OrderNo, companyName, logisticsNo, order.ReceiverName, order.ReceiverPhone, order.ReceiverAddress, trackingJSON, now, now, now,
+		).Error
+		if insertErr != nil {
+			return nil, apperrors.NewInternalError("创建物流单失败: " + insertErr.Error())
+		}
+	}
+
+	// 更新订单状态：待发货 -> 待收货
+	if err := l.orderRepo.UpdateStatus(ctx, order.ID, model.OrderStatusShipped, nil); err != nil {
+		return nil, apperrors.NewInternalError("更新订单状态失败: " + err.Error())
+	}
+
+	// 清缓存
+	if l.cache != nil {
+		_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID))
+		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
+	}
+
+	return &ShipOrderResponse{Success: true}, nil
 }
 
 // ConfirmReceiveRequest 确认收货请求
@@ -481,4 +624,77 @@ func (l *OrderLogic) generateOrderNo(ctx context.Context) string {
 		now.Format("20060102"),
 		now.Nanosecond()%1000000,
 	)
+}
+
+// deductStock 扣减库存：sku.stock 为唯一真源（原子 UPDATE 防超卖），inventory 表同步
+func deductStock(ctx context.Context, db *gorm.DB, cacheOps *cache.CacheOperations, skuID uint64, quantity int) error {
+	if db == nil {
+		return nil
+	}
+	if quantity <= 0 {
+		quantity = 1
+	}
+	// 原子扣减 sku.stock，stock >= quantity 防超卖
+	res := db.WithContext(ctx).Exec(
+		"UPDATE sku SET stock = stock - ? WHERE id = ? AND stock >= ?",
+		quantity, skuID, quantity,
+	)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("SKU %d 库存不足", skuID)
+	}
+	// 同步 inventory：可用库存减少、已售增加
+	_ = db.WithContext(ctx).Exec(
+		"UPDATE inventory SET available_stock = available_stock - ?, sold_stock = sold_stock + ? WHERE sku_id = ?",
+		quantity, quantity, skuID,
+	).Error
+	// 失效商品缓存：列表 / 详情 / SKU 信息，避免管理端商品列表库存显示旧值
+	invalidateProductCache(ctx, db, cacheOps, skuID)
+	return nil
+}
+
+// invalidateProductCache 扣减库存后失效商品相关缓存（列表用 pattern，详情/SKU 用精确键）
+func invalidateProductCache(ctx context.Context, db *gorm.DB, cacheOps *cache.CacheOperations, skuID uint64) {
+	if cacheOps == nil {
+		return
+	}
+	// 详情缓存需要 product_id，做一次 SKU 主键查询
+	var skuRow struct {
+		ProductID uint64 `gorm:"column:product_id"`
+	}
+	if db != nil {
+		if err := db.WithContext(ctx).Table("sku").Select("product_id").Where("id = ?", skuID).Scan(&skuRow).Error; err == nil && skuRow.ProductID > 0 {
+			_ = cacheOps.Delete(ctx, cache.BuildKey(cache.KeyPrefixProductDetail, skuRow.ProductID))
+		}
+	}
+	_ = cacheOps.Delete(ctx, cache.BuildKey(cache.KeyPrefixSkuInfo, skuID))
+	_ = cacheOps.DeletePattern(ctx, cache.KeyPrefixProductList+"*")
+}
+
+// restockStock 回增库存：取消订单时恢复 sku.stock 与 inventory
+func restockStock(ctx context.Context, db *gorm.DB, cacheOps *cache.CacheOperations, skuID uint64, quantity int) error {
+	if db == nil {
+		return nil
+	}
+	if quantity <= 0 {
+		return nil
+	}
+	// 回增 sku.stock
+	res := db.WithContext(ctx).Exec(
+		"UPDATE sku SET stock = stock + ? WHERE id = ?",
+		quantity, skuID,
+	)
+	if res.Error != nil {
+		return res.Error
+	}
+	// 同步 inventory：可用库存增加、已售减少（不低于 0）
+	_ = db.WithContext(ctx).Exec(
+		"UPDATE inventory SET available_stock = available_stock + ?, sold_stock = GREATEST(sold_stock - ?, 0) WHERE sku_id = ?",
+		quantity, quantity, skuID,
+	).Error
+	// 失效商品缓存
+	invalidateProductCache(ctx, db, cacheOps, skuID)
+	return nil
 }

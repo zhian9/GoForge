@@ -8,23 +8,24 @@ import (
 
 // Lua脚本定义
 
-// LuaScriptInventoryDeduct 库存扣减脚本（原子操作）
+// LuaScriptInventoryDeduct 库存扣减脚本（原子操作，防超卖）
 // KEYS[1]: 库存key (inventory:stock:{sku_id})
 // ARGV[1]: 扣减数量
-// 返回: 扣减后的库存数量，如果库存不足返回-1
+// 返回: >=0 成功(扣减后库存), -1 库存不足, -2 库存key不存在
 const LuaScriptInventoryDeduct = `
 	local stock = redis.call('GET', KEYS[1])
 	if not stock then
+		return -2
+	end
+	local deduct = tonumber(ARGV[1])
+	if not deduct or deduct <= 0 then
 		return -1
 	end
 	stock = tonumber(stock)
-	local deduct = tonumber(ARGV[1])
-	if stock >= deduct then
-		local new_stock = redis.call('DECRBY', KEYS[1], deduct)
-		return new_stock
-	else
+	if stock < deduct then
 		return -1
 	end
+	return redis.call('DECRBY', KEYS[1], deduct)
 `
 
 // LuaScriptInventoryRollback 库存回退脚本（原子操作）
@@ -32,12 +33,10 @@ const LuaScriptInventoryDeduct = `
 // ARGV[1]: 回退数量
 // 返回: 回退后的库存数量
 const LuaScriptInventoryRollback = `
-	local stock = redis.call('GET', KEYS[1])
-	if not stock then
-		stock = 0
-	end
-	stock = tonumber(stock)
 	local rollback = tonumber(ARGV[1])
+	if not rollback or rollback <= 0 then
+		rollback = 1
+	end
 	return redis.call('INCRBY', KEYS[1], rollback)
 `
 
@@ -102,25 +101,31 @@ const LuaScriptLockRelease = `
 	end
 `
 
-// LuaScriptSeckill 秒杀脚本（防超卖 + 防重复）
+// LuaScriptSeckill 秒杀脚本（防超卖 + 防重复 + 支持购买数量）
 // KEYS[1]: 库存key (seckill:stock:{skuId})
 // KEYS[2]: 用户key (seckill:user:{skuId}:{uid})
-// 返回: 1-成功, -1-库存不足, -2-重复抢购
+// ARGV[1]: 购买数量 (默认1)
+// 返回: >=0 成功(剩余库存), -1 库存不足, -2 重复抢购
 const LuaScriptSeckill = `
 	if redis.call("exists", KEYS[2]) == 1 then
 		return -2
 	end
-	
-	local stock = tonumber(redis.call("get", KEYS[1]))
-	if not stock or stock <= 0 then
+
+	local quantity = tonumber(ARGV[1])
+	if not quantity or quantity <= 0 then
+		quantity = 1
+	end
+
+	local stock = tonumber(redis.call("get", KEYS[1]) or "-1")
+	if stock < quantity then
 		return -1
 	end
-	
-	redis.call("decr", KEYS[1])
+
+	local new_stock = redis.call("decrby", KEYS[1], quantity)
 	redis.call("set", KEYS[2], 1)
 	redis.call("expire", KEYS[2], 86400)
-	
-	return 1
+
+	return new_stock
 `
 
 // ExecuteLuaScript 执行Lua脚本

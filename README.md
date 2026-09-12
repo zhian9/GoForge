@@ -1,6 +1,6 @@
 # GoForge
 
-基于 **go-zero** 的 Go 微服务电商系统，17 个微服务，前后端分离，Docker Compose 一键部署。
+基于 **go-zero** 的 Go 微服务电商系统，15 个业务微服务 + API 网关 + 消息消费者，前后端分离，Docker Compose 一键部署。
 
 ## 技术栈
 
@@ -52,8 +52,8 @@ GoForge/
 │   ├── docker/                 # Docker 环境 (${ENV} 占位符)
 │   ├── test/                   # 测试环境
 │   └── prod/                   # 生产环境
-├── admin/                      # Vue3 管理后台 (:3000)
-├── web/                        # Vue3 用户端 (:3001)
+├── admin/                      # Vue3 管理后台 (:80)
+├── web/                        # Vue3 用户端 (:8088)
 ├── deploy/                     # Docker 部署
 │   ├── compose/                # docker-compose.yml
 │   ├── docker/                 # Dockerfiles
@@ -128,13 +128,37 @@ cd admin && npm install && npm run dev    # 管理后台 :3000
 cd web && npm install && npm run dev      # 用户端 :3001
 ```
 
-### Docker 部署
+### Docker 部署（推荐）
 
 ```bash
 cd deploy/compose
-cp ../.env.example ../.env    # 编辑密码
-docker compose up -d          # 启动全部 28 容器
+cp ../.env.example ../.env      # 编辑密码
+docker compose up -d            # 启动全部容器
 ```
+
+> 改 Go 代码后重新部署：先单次构建镜像再拉起（避免 `--build` 导致 16 个服务重复构建）：
+> ```bash
+> docker build -t goforge-server:latest -f deploy/docker/server.Dockerfile .
+> docker compose up -d --force-recreate <service>
+> ```
+> 前端改动：`docker compose build admin-builder web-builder && docker compose up -d --force-recreate admin-builder web-builder`
+
+## 测试账号
+
+| 角色 | 地址 | 账号 / 密码 |
+|------|------|-------------|
+| 管理后台 | http://localhost/ | admin / admin123 |
+| 用户端 | http://localhost:8088/ | 注册即用 |
+
+## 核心业务闭环
+
+- 商品浏览 / 分类 / 搜索 / 秒杀
+- 购物车 → 下单（原子扣减库存，防超卖）
+- 支付（Mock 渠道 + 幂等乐观锁）→ 订单待发货
+- 管理员发货 → 物流轨迹
+- 确认收货 → 评价
+- 取消 / 退款（回增库存）
+- 签到积分（下单支付 1 元 = 1 积分）
 
 ## API 端点
 

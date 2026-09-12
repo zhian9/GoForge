@@ -16,6 +16,8 @@ service OrderService {
     rpc CancelOrder (CancelOrderRequest) returns (CancelOrderResponse);
     // 确认收货
     rpc ConfirmReceive (ConfirmReceiveRequest) returns (ConfirmReceiveResponse);
+    // 发货
+    rpc ShipOrder (ShipOrderRequest) returns (ShipOrderResponse);
 }
 
 // 订单信息
@@ -148,6 +150,19 @@ message ConfirmReceiveRequest {
 
 // 确认收货响应
 message ConfirmReceiveResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 发货请求
+message ShipOrderRequest {
+    int64 id = 1;
+    string company_code = 2; // 物流公司编码
+    string logistics_no = 3; // 物流单号（可选，不传自动生成）
+}
+
+// 发货响应
+message ShipOrderResponse {
     int32 code = 1;
     string message = 2;
 }

@@ -15,14 +15,6 @@
             <span class="status-tag" :class="'status-'+order.status">{{ statusText(order.status) }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">支付状态</span>
-            <span class="status-tag" :class="'pay-'+ (order.payment_status||0)">{{ payText(order.payment_status||0) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">发货状态</span>
-            <span class="status-tag" :class="'ship-'+ (order.shipping_status||0)">{{ shipText(order.shipping_status||0) }}</span>
-          </div>
-          <div class="info-item">
             <span class="info-label">订单金额</span>
             <span class="info-value accent">¥{{ fmt(computedTotal) }}</span>
           </div>
@@ -31,6 +23,12 @@
             <span class="info-value">{{ order.created_at }}</span>
           </div>
         </div>
+      </div>
+
+      <!-- ======== 操作 ======== -->
+      <div class="actions-bar" v-if="order.status === 1 || order.status === 3">
+        <button v-if="order.status === 1" class="btn-pay" @click="goPay">去支付</button>
+        <button v-if="order.status === 3" class="btn-pay" @click="handleConfirmReceive">确认收货</button>
       </div>
 
       <!-- ======== 收货信息 ======== -->
@@ -70,12 +68,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { getOrderDetail } from '@/api/order'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { getOrderDetail, confirmReceive } from '@/api/order'
 import { getSkuDetail } from '@/api/sku'
 import type { Order, OrderItem } from '@/api/order'
 
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const order = ref<Order|null>(null)
 
@@ -85,12 +85,8 @@ const resolveUrl = (url:string) => {if(!url)return'';if(url.startsWith('http'))r
 const fmt = (v:any) => {const n=Number(v||0);return isNaN(n)?'0.00':n.toFixed(2)}
 const getField = (obj:any,...keys:string[])=>{for(const k of keys)if(obj&&k in obj&&obj[k]!==undefined&&obj[k]!==null)return obj[k];return undefined}
 
-const statusMap:Record<number,string> = {1:'待支付',2:'待发货',3:'待收货',4:'已完成',5:'已取消'}
-const payMap:Record<number,string> = {1:'待支付',2:'已支付',3:'部分退款',4:'已退款'}
-const shipMap:Record<number,string> = {0:'待发货',1:'已发货',2:'部分发货',3:'已收货'}
+const statusMap:Record<number,string> = {0:'已取消',1:'待支付',2:'待发货',3:'待收货',4:'已完成',5:'已退款'}
 const statusText = (s:number) => statusMap[s]||'未知'
-const payText = (s:number) => payMap[s]||'未知'
-const shipText = (s:number) => shipMap[s]||'未知'
 
 const computedTotal = computed(() => {
   if (!order.value?.items?.length) return 0
@@ -138,6 +134,19 @@ const loadOrderItemDetails = async () => {
   if(order.value?.items?.length){
     let t=0;order.value.items.forEach((i:OrderItem)=>{const p=typeof i.price==='string'?parseFloat(i.price):(i.price||0);t+=p*(i.quantity||0)});order.value.total_amount=String(t.toFixed(2))
   }
+}
+
+const goPay = () => {
+  if (order.value?.id) router.push(`/pay/${order.value.id}`)
+}
+
+const handleConfirmReceive = async () => {
+  if (!order.value?.id) return
+  try {
+    await confirmReceive(order.value.id)
+    ElMessage.success('已确认收货')
+    fetchOrder()
+  } catch (e: any) { ElMessage.error(e.message || '确认收货失败') }
 }
 
 const fetchOrder = async () => {
@@ -196,6 +205,11 @@ onMounted(()=>fetchOrder())
 .info-value { font-size:15px; color:var(--text); font-weight:500; word-break:break-all; }
 .info-value.mono { font-family:'SF Mono','Fira Code',monospace; font-size:14px; }
 .info-value.accent { font-size:20px; font-weight:700; color:var(--accent); letter-spacing:-.01em; }
+
+/* Actions */
+.actions-bar { display:flex; justify-content:flex-end; gap:12px; margin-bottom:20px; }
+.btn-pay { padding:12px 40px; border-radius:100px; border:none; background:var(--accent); color:#0A0F1C; font-size:15px; font-weight:700; cursor:pointer; transition:all .2s; }
+.btn-pay:hover { box-shadow:0 0 24px rgba(0,245,255,.35); transform:translateY(-1px); }
 
 /* Status Tags */
 .status-tag { display:inline-block; padding:4px 14px; border-radius:100px; font-size:12px; font-weight:600; width:fit-content; }
