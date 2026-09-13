@@ -18,6 +18,8 @@ service OrderService {
     rpc ConfirmReceive (ConfirmReceiveRequest) returns (ConfirmReceiveResponse);
     // 发货
     rpc ShipOrder (ShipOrderRequest) returns (ShipOrderResponse);
+    // 统计信息
+    rpc GetStats (GetStatsRequest) returns (GetStatsResponse);
 }
 
 // 订单信息
@@ -165,6 +167,19 @@ message ShipOrderRequest {
 message ShipOrderResponse {
     int32 code = 1;
     string message = 2;
+}
+
+// 统计请求
+message GetStatsRequest {
+}
+
+// 统计响应
+message GetStatsResponse {
+    int32 code = 1;
+    string message = 2;
+    int64 total_orders = 3;   // 订单总数
+    string total_sales = 4;   // 总销售额（已支付未退款）
+    int64 today_orders = 5;   // 今日订单数
 }
 
 

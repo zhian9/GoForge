@@ -28,6 +28,8 @@ service UserService {
     rpc DeleteAddress (DeleteAddressRequest) returns (DeleteAddressResponse);
     //每日签到
     rpc SignIn (SignInRequest) returns (SignInResponse);
+    //余额充值
+    rpc Recharge (RechargeRequest) returns (RechargeResponse);
 }
 
 // 用户信息
@@ -46,6 +48,7 @@ message User {
     string created_at = 12;
     string updated_at = 13;
     int32 is_admin = 14;    //是否管理员 0-否 1-是
+    double balance = 15;    //余额（系统内货币，单位元）
 }
 
 // 签到请求
@@ -241,5 +244,18 @@ message DeleteUserRequest {
 message DeleteUserResponse {
     int32 code = 1;
     string message = 2;
+}
+
+// 余额充值请求
+message RechargeRequest {
+    int64 user_id = 1;
+    string amount = 2; // 充值金额（元）
+}
+
+// 余额充值响应
+message RechargeResponse {
+    int32 code = 1;
+    string message = 2;
+    double balance = 3; // 充值后余额
 }
 

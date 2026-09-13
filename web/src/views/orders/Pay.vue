@@ -6,6 +6,7 @@
       <div class="amount-block">
         <span class="amount-label">支付金额</span>
         <span class="amount-value">¥{{ fmt(amount) }}</span>
+        <span class="balance-tip">账户余额 ¥{{ fmt((userStore.userInfo as any)?.balance ?? 0) }}</span>
       </div>
 
       <div class="method-block">
@@ -24,8 +25,8 @@
       <div class="mock-tip">当前为 Mock 支付渠道，用于联调跑通流程，不会真实扣款。</div>
 
       <div class="pay-actions">
-        <button class="btn-pay" @click="doPay(1)">模拟支付成功</button>
-        <button class="btn-fail" @click="doPay(2)">模拟支付失败</button>
+        <button class="btn-pay" @click="doPay(1)">{{ selectedMethod === 4 ? '确认支付' : '模拟支付成功' }}</button>
+        <button v-if="selectedMethod !== 4" class="btn-fail" @click="doPay(2)">模拟支付失败</button>
       </div>
     </div>
 
@@ -51,9 +52,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getOrderDetail } from '@/api/order'
 import { createPayment, mockPayCallback, queryPaymentStatus } from '@/api/payment'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const orderId = Number(route.params.id || 0)
 const orderNo = ref('')
@@ -68,6 +71,7 @@ const methods = [
   { value: 1, label: '微信支付' },
   { value: 2, label: '支付宝' },
   { value: 3, label: '银联' },
+  { value: 4, label: '余额支付' },
 ]
 
 const fmt = (v: any) => { const n = Number(v || 0); return isNaN(n) ? '0.00' : n.toFixed(2) }
@@ -148,6 +152,7 @@ onMounted(async () => {
 .amount-block { text-align:center; padding-bottom:24px; border-bottom:1px solid var(--border); }
 .amount-label { display:block; font-size:13px; color:var(--text-dim); margin-bottom:8px; }
 .amount-value { font-size:40px; font-weight:800; color:var(--accent); letter-spacing:-.02em; }
+.balance-tip { display:block; margin-top:8px; font-size:12px; color:var(--text-dim); }
 .method-block { padding:24px 0; }
 .block-label { font-size:13px; color:var(--text-dim); display:block; margin-bottom:12px; }
 .method-list { display:flex; gap:10px; }

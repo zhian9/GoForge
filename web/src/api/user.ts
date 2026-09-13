@@ -27,6 +27,7 @@ export interface UserInfo {
   status: number
   member_level: number
   points: number
+  balance?: number
   created_at: string
   updated_at: string
 }
@@ -76,6 +77,14 @@ export const signIn = (userId: number) => {
   return request.post<{ code: number; message: string; addedPoints?: number; totalPoints?: number }>(
     '/v1/user/signin',
     { user_id: userId }
+  )
+}
+
+// 余额充值
+export const recharge = (userId: number, amount: number) => {
+  return request.post<{ code: number; message: string; balance?: number }>(
+    '/v1/user/recharge',
+    { user_id: userId, amount: String(amount) }
   )
 }
 

@@ -205,6 +205,13 @@ func (l *PaymentLogic) PaymentCallback(ctx context.Context, req *PaymentCallback
 	before := payment.Status
 
 	if req.Status == model.PaymentStatusSuccess {
+		// 余额支付：先原子扣余额（防透支）
+		if payment.PaymentMethod == model.PaymentMethodBalance {
+			if err := l.deductBalance(ctx, payment.UserID, payment.Amount); err != nil {
+				return err
+			}
+		}
+
 		// 原子更新：仅在待支付状态下更新为成功
 		updates := map[string]interface{}{
 			"status":    model.PaymentStatusSuccess,
@@ -216,10 +223,17 @@ func (l *PaymentLogic) PaymentCallback(ctx context.Context, req *PaymentCallback
 		}
 		affected, err := l.paymentRepo.UpdateStatusAtomic(ctx, req.PaymentNo, model.PaymentStatusPending, updates)
 		if err != nil {
+			// 状态更新失败，回退已扣余额
+			if payment.PaymentMethod == model.PaymentMethodBalance {
+				l.refundBalance(ctx, payment.UserID, payment.Amount)
+			}
 			return apperrors.NewInternalError("更新支付状态失败")
 		}
 		if !affected {
-			// 已被并发处理，幂等返回
+			// 已被并发处理，回退已扣余额（幂等）
+			if payment.PaymentMethod == model.PaymentMethodBalance {
+				l.refundBalance(ctx, payment.UserID, payment.Amount)
+			}
 			return nil
 		}
 
@@ -325,6 +339,11 @@ func (l *PaymentLogic) Refund(ctx context.Context, req *RefundRequest) (*RefundR
 	after := model.PaymentStatusRefunded
 	_ = l.writeLog(ctx, payment, "refund", req.RefundAmount, &before, &after, &req.Reason)
 
+	// 余额支付退款：回退余额
+	if payment.PaymentMethod == model.PaymentMethodBalance {
+		l.refundBalance(ctx, payment.UserID, req.RefundAmount)
+	}
+
 	l.publishEvent(ctx, mq.TopicPaymentRefunded, payment.PaymentNo, map[string]interface{}{
 		"order_id":      payment.OrderID,
 		"order_no":      payment.OrderNo,
@@ -402,4 +421,49 @@ func (l *PaymentLogic) publishEvent(ctx context.Context, topic, key string, data
 	}
 	message := mq.NewMessage(topic, data)
 	_ = l.mqProducer.PublishWithKey(ctx, topic, key, message)
+}
+
+// deductBalance 原子扣减余额（防透支）
+func (l *PaymentLogic) deductBalance(ctx context.Context, userID uint64, amount float64) error {
+	if l.db == nil {
+		return apperrors.NewInternalError("数据库未初始化")
+	}
+	res := l.db.WithContext(ctx).Exec(
+		"UPDATE user SET balance = balance - ? WHERE id = ? AND balance >= ?",
+		amount, userID, amount,
+	)
+	if res.Error != nil {
+		return apperrors.NewInternalError("扣减余额失败")
+	}
+	if res.RowsAffected == 0 {
+		return apperrors.NewError(apperrors.CodeInvalidParam, "余额不足")
+	}
+	// 记余额流水（支付支出）
+	l.writeBalanceLog(ctx, userID, 2, -amount, "余额支付")
+	return nil
+}
+
+// refundBalance 回退余额
+func (l *PaymentLogic) refundBalance(ctx context.Context, userID uint64, amount float64) {
+	if l.db == nil {
+		return
+	}
+	_ = l.db.WithContext(ctx).Exec("UPDATE user SET balance = balance + ? WHERE id = ?", amount, userID).Error
+	// 记余额流水（退款收入）
+	l.writeBalanceLog(ctx, userID, 3, amount, "退款回退")
+}
+
+// writeBalanceLog 记余额流水（amount 带符号：正增负减）
+func (l *PaymentLogic) writeBalanceLog(ctx context.Context, userID uint64, logType int8, amount float64, remark string) {
+	if l.db == nil {
+		return
+	}
+	var balance float64
+	if err := l.db.WithContext(ctx).Table("user").Select("balance").Where("id = ?", userID).Scan(&balance).Error; err != nil {
+		return
+	}
+	_ = l.db.WithContext(ctx).Exec(
+		"INSERT INTO balance_log (user_id, order_no, type, amount, before_balance, after_balance, remark, created_at) VALUES (?, '', ?, ?, ?, ?, ?, ?)",
+		userID, logType, amount, balance-amount, balance, remark, time.Now(),
+	).Error
 }

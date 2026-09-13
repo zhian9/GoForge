@@ -19,15 +19,23 @@
     <div class="bottom-grid">
       <DarkCard title="最近订单" hover style="grid-column:span 2">
         <el-table :data="recentOrders" size="small" stripe>
-          <el-table-column prop="orderNo" label="订单号" width="180" />
-          <el-table-column prop="user" label="用户" width="120" />
-          <el-table-column prop="amount" label="金额" width="100" />
-          <el-table-column prop="status" label="状态" width="100">
+          <el-table-column label="订单号" width="190">
+            <template #default="{ row }">{{ row.orderNo || row.order_no || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="用户ID" width="90">
+            <template #default="{ row }">{{ row.userId ?? row.user_id ?? '-' }}</template>
+          </el-table-column>
+          <el-table-column label="金额" width="110">
+            <template #default="{ row }">¥{{ Number(row.totalAmount ?? row.total_amount ?? 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="100">
             <template #default="{ row }">
-              <span class="status-tag" :class="row.status==='已完成'?'done':'pending'">{{ row.status }}</span>
+              <span class="status-tag" :class="(row.status ?? 0) === 4 ? 'done' : 'pending'">{{ statusText(row.status ?? 0) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="time" label="时间" />
+          <el-table-column label="时间">
+            <template #default="{ row }">{{ (row.createdAt || row.created_at || '').slice(0, 16) }}</template>
+          </el-table-column>
         </el-table>
       </DarkCard>
 
@@ -44,22 +52,30 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import PageHeader from '@/components/PageHeader.vue'
 import DarkCard from '@/components/DarkCard.vue'
 import StatCard from '@/components/StatCard.vue'
+import { getUserList } from '@/api/user'
+import { getProductList } from '@/api/product'
+import { getOrderList, getOrderStats } from '@/api/order'
 
-const kpiCards = [
-  { label: '总用户数', value: '1,234', trend: 12, color: 'cyan', icon: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>' },
-  { label: '商品总数', value: '5,678', trend: 8, color: 'blue', icon: '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
-  { label: '订单总数', value: '9,012', trend: 24, color: 'green', icon: '<rect x="2" y="3" width="20" height="18" rx="3"/><line x1="6" y1="9" x2="18" y2="9"/>' },
-  { label: '总销售额', value: '¥123K', trend: -3, color: 'red', icon: '<rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
-]
+const totalUsers = ref(0)
+const totalProducts = ref(0)
+const totalOrders = ref(0)
+const totalSales = ref(0)
+const recentOrders = ref<any[]>([])
 
-const recentOrders = [
-  { orderNo: 'ORD20260512000001', user: 'testuser99', amount: '¥4,999', status: '已完成', time: '2026-05-12 10:30' },
-  { orderNo: 'ORD20260512000002', user: 'testuser99', amount: '¥6,999', status: '待支付', time: '2026-05-12 09:15' },
-  { orderNo: 'ORD20260511000003', user: 'testuser99', amount: '¥3,299', status: '已完成', time: '2026-05-11 18:00' },
-]
+const fmt = (v: any) => { const n = Number(v || 0); return isNaN(n) ? '0' : n.toLocaleString() }
+
+const kpiCards = computed(() => [
+  { label: '总用户数', value: fmt(totalUsers.value), trend: 0, color: 'cyan', icon: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>' },
+  { label: '商品总数', value: fmt(totalProducts.value), trend: 0, color: 'blue', icon: '<path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path d="M16 10a4 4 0 01-8 0"/>' },
+  { label: '订单总数', value: fmt(totalOrders.value), trend: 0, color: 'green', icon: '<rect x="2" y="3" width="20" height="18" rx="3"/><line x1="6" y1="9" x2="18" y2="9"/>' },
+  { label: '总销售额', value: '¥' + Number(totalSales.value).toFixed(2), trend: 0, color: 'red', icon: '<rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' },
+])
+
+const statusText = (s: number) => ({ 0: '已取消', 1: '待支付', 2: '待发货', 3: '待收货', 4: '已完成', 5: '已退款' } as Record<number, string>)[s] || '未知'
 
 const quickActions = [
   { label: '添加商品', path: '/products', icon: '<path d="M12 5v14M5 12h14"/>' },
@@ -67,6 +83,13 @@ const quickActions = [
   { label: '查看订单', path: '/orders', icon: '<rect x="2" y="3" width="20" height="18" rx="3"/><line x1="6" y1="9" x2="18" y2="9"/>' },
   { label: '用户管理', path: '/users', icon: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>' },
 ]
+
+onMounted(async () => {
+  try { const r: any = await getUserList({ page: 1, page_size: 1 }); if (r.code === 0) totalUsers.value = Number(r.data?.total || 0) } catch {}
+  try { const r: any = await getProductList({ page: 1, page_size: 1 }); if (r.code === 0) totalProducts.value = Number(r.data?.total || 0) } catch {}
+  try { const r: any = await getOrderStats(); if (r.code === 0) { totalOrders.value = Number(r.totalOrders || 0); totalSales.value = Number(r.totalSales || 0) } } catch {}
+  try { const r: any = await getOrderList({ page: 1, page_size: 5, status: -1 }); if (r.code === 0) recentOrders.value = (r.data?.list || r.data?.orders || []) } catch {}
+})
 </script>
 
 <style scoped>

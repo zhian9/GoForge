@@ -24,6 +24,7 @@ CREATE TABLE `user` (
                         `status` TINYINT DEFAULT 1 COMMENT '状态: 0-禁用, 1-正常',
                         `member_level` TINYINT DEFAULT 0 COMMENT '会员等级: 0-普通, 1-VIP1, 2-VIP2, 3-VIP3',
                         `points` INT DEFAULT 0 COMMENT '积分',
+                        `balance` DECIMAL(10, 2) DEFAULT 0 COMMENT '余额（系统内货币，单位元）',
                         `is_admin` TINYINT DEFAULT 0 COMMENT '0-普通用户 1-管理员',
                         `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                         `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -425,6 +426,22 @@ CREATE TABLE `points` (
                           PRIMARY KEY (`id`),
                           UNIQUE KEY `uk_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='积分账户表';
+
+-- 余额流水表
+CREATE TABLE `balance_log` (
+                              `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '流水ID',
+                              `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+                              `order_no` VARCHAR(32) DEFAULT NULL COMMENT '关联订单号',
+                              `type` TINYINT NOT NULL COMMENT '类型: 1-充值, 2-支付, 3-退款, 4-赠送',
+                              `amount` DECIMAL(10, 2) NOT NULL COMMENT '变动金额（正增负减）',
+                              `before_balance` DECIMAL(10, 2) NOT NULL COMMENT '变动前余额',
+                              `after_balance` DECIMAL(10, 2) NOT NULL COMMENT '变动后余额',
+                              `remark` VARCHAR(255) DEFAULT NULL COMMENT '备注',
+                              `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                              PRIMARY KEY (`id`),
+                              KEY `idx_user_id` (`user_id`),
+                              KEY `idx_order_no` (`order_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='余额流水表';
 
 -- ============================================
 -- 七、评价服务 (review-service)

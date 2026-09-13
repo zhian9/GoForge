@@ -56,9 +56,20 @@ service.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       let errorMessage = '请求失败'
-      
-      if (data && data.message) {
-        errorMessage = data.message
+
+      // 兼容 JSON 对象与 gRPC 错误文本（"rpc error: ... message: xxx"）
+      let bizMsg = ''
+      if (data) {
+        if (typeof data === 'string') {
+          const m = data.match(/message:\s*([^\n]+)/)
+          if (m) bizMsg = m[1]
+        } else if (data.message) {
+          bizMsg = data.message
+        }
+      }
+
+      if (bizMsg) {
+        errorMessage = bizMsg
       } else if (status === 400) {
         errorMessage = '请求参数错误'
       } else if (status === 401) {
@@ -71,7 +82,7 @@ service.interceptors.response.use(
       } else if (status === 500) {
         errorMessage = '服务器内部错误'
       }
-      
+
       ElMessage.error(errorMessage)
       return Promise.reject(new Error(errorMessage))
     } else if (error.request) {

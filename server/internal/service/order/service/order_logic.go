@@ -91,14 +91,41 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 	// 2. 生成订单号（使用Redis保证唯一性）
 	orderNo := l.generateOrderNo(ctx)
 
-	// 3. 创建订单（简化实现，实际需要调用其他服务获取商品信息、地址信息等）
+	// 3. 计算订单金额：前端未传价格时查 SKU 表，汇总总额
+	type resolvedItem struct {
+		SkuID       uint64
+		Quantity    int
+		ProductName string
+		Price       float64
+	}
+	resolvedItems := make([]resolvedItem, 0, len(req.Items))
+	var totalAmount float64
+	for _, itemReq := range req.Items {
+		price := itemReq.Price
+		if price <= 0 && l.db != nil {
+			var skuPrice float64
+			_ = l.db.WithContext(ctx).Table("sku").Select("price").Where("id = ?", itemReq.SkuID).Scan(&skuPrice).Error
+			if skuPrice > 0 {
+				price = skuPrice
+			}
+		}
+		totalAmount += price * float64(itemReq.Quantity)
+		resolvedItems = append(resolvedItems, resolvedItem{
+			SkuID:       itemReq.SkuID,
+			Quantity:    itemReq.Quantity,
+			ProductName: itemReq.ProductName,
+			Price:       price,
+		})
+	}
+
+	// 4. 创建订单
 	order := &model.Order{
 		OrderNo:         orderNo,
 		UserID:          req.UserID,
 		OrderType:       req.OrderType,
 		Status:          model.OrderStatusPending,
-		TotalAmount:     0,
-		PayAmount:       0, // 需要计算
+		TotalAmount:     totalAmount,
+		PayAmount:       totalAmount,
 		DiscountAmount:  0,
 		FreightAmount:   0,
 		ReceiverName:    req.ReceiverName,
@@ -110,7 +137,7 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 		order.Remark = &req.Remark
 	}
 
-	// 4. 保存订单
+	// 5. 保存订单
 	if err := l.orderRepo.Create(ctx, order); err != nil {
 		return nil, apperrors.NewInternalError("创建订单失败: " + err.Error())
 	}
@@ -120,20 +147,20 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
 	}
 
-	// 5. 创建订单商品项（简化实现）
-	items := make([]*model.OrderItem, 0, len(req.Items))
-	for _, itemReq := range req.Items {
+	// 6. 创建订单商品项
+	items := make([]*model.OrderItem, 0, len(resolvedItems))
+	for _, it := range resolvedItems {
 		item := &model.OrderItem{
 			OrderID:     order.ID,
 			OrderNo:     orderNo,
-			ProductID:   0,  // 需要从商品服务获取
-			ProductName: itemReq.ProductName, // 需要从商品服务获取
-			SkuID:       itemReq.SkuID,
-			SkuCode:     "", // 需要从商品服务获取
-			SkuName:     "", // 需要从商品服务获取
-			Price:       itemReq.Price,  // 需要从商品服务获取
-			Quantity:    itemReq.Quantity,
-			TotalAmount: itemReq.Price * float64(itemReq.Quantity), // 需要计算
+			ProductID:   0,            // 需要从商品服务获取
+			ProductName: it.ProductName, // 需要从商品服务获取
+			SkuID:       it.SkuID,
+			SkuCode:     "",           // 需要从商品服务获取
+			SkuName:     "",           // 需要从商品服务获取
+			Price:       it.Price,
+			Quantity:    it.Quantity,
+			TotalAmount: it.Price * float64(it.Quantity),
 		}
 		items = append(items, item)
 	}
@@ -554,6 +581,33 @@ func (l *OrderLogic) ShipOrder(ctx context.Context, req *ShipOrderRequest) (*Shi
 	return &ShipOrderResponse{Success: true}, nil
 }
 
+// GetStatsRequest 统计请求
+type GetStatsRequest struct{}
+
+// GetStatsResponse 统计响应
+type GetStatsResponse struct {
+	TotalOrders int64
+	TotalSales  float64
+	TodayOrders int64
+}
+
+// GetStats 获取订单统计数据
+func (l *OrderLogic) GetStats(ctx context.Context, req *GetStatsRequest) (*GetStatsResponse, error) {
+	var totalOrders, todayOrders int64
+	var totalSales float64
+	if l.db != nil {
+		_ = l.db.WithContext(ctx).Table("orders").Count(&totalOrders).Error
+		_ = l.db.WithContext(ctx).Table("orders").
+			Select("COALESCE(SUM(pay_amount), 0)").
+			Where("status IN (2,3,4)").
+			Scan(&totalSales).Error
+		_ = l.db.WithContext(ctx).Table("orders").
+			Where("created_at >= ?", time.Now().Format("2006-01-02")).
+			Count(&todayOrders).Error
+	}
+	return &GetStatsResponse{TotalOrders: totalOrders, TotalSales: totalSales, TodayOrders: todayOrders}, nil
+}
+
 // ConfirmReceiveRequest 确认收货请求
 type ConfirmReceiveRequest struct {
 	ID      uint64
@@ -587,6 +641,12 @@ func (l *OrderLogic) ConfirmReceive(ctx context.Context, req *ConfirmReceiveRequ
 	// 更新订单状态
 	if err := l.orderRepo.UpdateStatus(ctx, order.ID, model.OrderStatusCompleted, nil); err != nil {
 		return nil, apperrors.NewInternalError("确认收货失败: " + err.Error())
+	}
+
+	// 清缓存（详情 + 列表），避免列表仍显示「待收货」
+	if l.cache != nil {
+		_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID))
+		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
 	}
 
 	// 记录订单日志

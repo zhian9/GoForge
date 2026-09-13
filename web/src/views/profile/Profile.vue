@@ -113,6 +113,7 @@
           <div class="account-grid">
             <div class="account-item"><span class="a-label">会员等级</span><span class="a-value">{{ levelText }}</span></div>
             <div class="account-item"><span class="a-label">积分</span><span class="a-value accent">{{ userStore.userInfo?.points || 0 }}<button class="signin-btn" :disabled="signInLoading" @click="handleSignIn">{{ signInLoading?'签到中…':'签到' }}</button></span></div>
+            <div class="account-item"><span class="a-label">余额</span><span class="a-value accent">¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}<button class="signin-btn" @click="handleRecharge">充值</button></span></div>
             <div class="account-item"><span class="a-label">注册时间</span><span class="a-value">{{ userStore.userInfo?.created_at || '-' }}</span></div>
             <div class="account-item"><span class="a-label">最后更新</span><span class="a-value">{{ userStore.userInfo?.updated_at || '-' }}</span></div>
           </div>
@@ -152,7 +153,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { updateUserInfo, getAddressList, addAddress, updateAddress, deleteAddress, signIn } from '@/api/user'
+import { updateUserInfo, getAddressList, addAddress, updateAddress, deleteAddress, signIn, recharge } from '@/api/user'
 import type { Address, UpdateAddressRequest } from '@/api/user'
 
 const userStore = useUserStore()
@@ -181,6 +182,22 @@ const handleSignIn = async () => {
   } finally {
     signInLoading.value = false
   }
+}
+
+const handleRecharge = async () => {
+  const uid = userStore.userInfo?.id || userStore.userId
+  if (!uid) { ElMessage.warning('请先登录'); return }
+  try {
+    const { value } = await ElMessageBox.prompt('输入充值金额（元）', '余额充值', {
+      confirmButtonText: '充值', cancelButtonText: '取消',
+      inputPattern: /^\d+(\.\d{1,2})?$/, inputErrorMessage: '请输入正确的金额',
+    })
+    const amount = parseFloat(value)
+    if (!(amount > 0)) { ElMessage.warning('金额需大于 0'); return }
+    await recharge(Number(uid), amount)
+    ElMessage.success('充值成功')
+    await userStore.fetchUserInfo()
+  } catch (e: any) { if (e !== 'cancel') ElMessage.error(e.message || '充值失败') }
 }
 
 const resolveUrl = (url: string) => { if(!url) return ''; if(url.startsWith('http')) return url; if(url.startsWith('/')) return 'http://localhost:8080'+url; return url }

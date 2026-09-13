@@ -11,6 +11,7 @@ import (
 	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/user/model"
 	repository "github.com/zhian9/GoForge/server/internal/service/user/repository"
+	"gorm.io/gorm"
 )
 
 // UserLogic 用户业务逻辑
@@ -19,6 +20,7 @@ type UserLogic struct {
 	credentialRepo repository.CredentialRepository
 	addressRepo    repository.AddressRepository
 	cache          *cache.CacheOperations
+	db             *gorm.DB
 }
 
 // NewUserLogic 创建用户业务逻辑
@@ -27,12 +29,14 @@ func NewUserLogic(
 	credentialRepo repository.CredentialRepository,
 	addressRepo repository.AddressRepository,
 	cache *cache.CacheOperations,
+	db *gorm.DB,
 ) *UserLogic {
 	return &UserLogic{
 		userRepo:       userRepo,
 		credentialRepo: credentialRepo,
 		addressRepo:    addressRepo,
 		cache:          cache,
+		db:             db,
 	}
 }
 
@@ -106,6 +110,7 @@ func (u *UserLogic) Register(ctx context.Context, req *RegisterRequest) (*Regist
 		Status:      constants.UserStatusNormal,
 		MemberLevel: constants.MemberLevelNormal,
 		Points:      100, // 注册赠送 100 积分
+		Balance:     100, // 注册赠送 100 元余额
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -197,6 +202,61 @@ func (u *UserLogic) SignIn(ctx context.Context, req *SignInRequest) (*SignInResp
 	}
 
 	return &SignInResponse{AddedPoints: signInBonus, TotalPoints: user.Points}, nil
+}
+
+// RechargeRequest 充值请求
+type RechargeRequest struct {
+	UserID uint64
+	Amount float64
+}
+
+// RechargeResponse 充值响应
+type RechargeResponse struct {
+	Balance float64
+}
+
+// Recharge 余额充值
+func (u *UserLogic) Recharge(ctx context.Context, req *RechargeRequest) (*RechargeResponse, error) {
+	if req.UserID == 0 {
+		return nil, errors.NewInvalidParamError("用户ID不能为空")
+	}
+	if req.Amount <= 0 || req.Amount > 100000 {
+		return nil, errors.NewInvalidParamError("充值金额需大于0且不超过100000")
+	}
+	if u.db == nil {
+		return nil, errors.NewInternalError("数据库未初始化")
+	}
+
+	// 原子增加余额
+	res := u.db.WithContext(ctx).Exec(
+		"UPDATE user SET balance = balance + ? WHERE id = ?",
+		req.Amount, req.UserID,
+	)
+	if res.Error != nil {
+		return nil, errors.NewInternalError("充值失败")
+	}
+	if res.RowsAffected == 0 {
+		return nil, errors.NewInvalidParamError("用户不存在")
+	}
+
+	// 查询充值后余额
+	var balance float64
+	if err := u.db.WithContext(ctx).Table("user").Select("balance").Where("id = ?", req.UserID).Scan(&balance).Error; err != nil {
+		return nil, errors.NewInternalError("查询余额失败")
+	}
+
+	// 记余额流水
+	_ = u.db.WithContext(ctx).Exec(
+		"INSERT INTO balance_log (user_id, order_no, type, amount, before_balance, after_balance, remark, created_at) VALUES (?, '', 1, ?, ?, ?, '充值', ?)",
+		req.UserID, req.Amount, balance-req.Amount, balance, time.Now(),
+	).Error
+
+	// 清用户缓存
+	if u.cache != nil {
+		_ = u.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixUserInfo, req.UserID))
+	}
+
+	return &RechargeResponse{Balance: balance}, nil
 }
 
 // LoginRequest 登录请求

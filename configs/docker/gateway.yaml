@@ -104,6 +104,12 @@ Upstreams:
       - Method: post
         Path: /api/v1/user/signin
         RpcPath: user.v1.UserService/SignIn
+      - Method: options
+        Path: /api/v1/user/recharge
+        RpcPath: user.v1.UserService/Recharge
+      - Method: post
+        Path: /api/v1/user/recharge
+        RpcPath: user.v1.UserService/Recharge
 
   # 商品服务
   - Name: product-service
@@ -253,6 +259,9 @@ Upstreams:
       - Method: get
         Path: /api/v1/orders
         RpcPath: order.v1.OrderService/ListOrders
+      - Method: get
+        Path: /api/v1/orders/stats
+        RpcPath: order.v1.OrderService/GetStats
       - Method: options
         Path: /api/v1/orders/:id
         RpcPath: order.v1.OrderService/GetOrder

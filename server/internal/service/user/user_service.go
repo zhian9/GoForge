@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	v1 "github.com/zhian9/GoForge/server/api/user/v1"
@@ -391,6 +392,26 @@ func (s *UserService) SignIn(ctx context.Context, req *v1.SignInRequest) (*v1.Si
 	}, nil
 }
 
+// Recharge 余额充值
+func (s *UserService) Recharge(ctx context.Context, req *v1.RechargeRequest) (*v1.RechargeResponse, error) {
+	amount, _ := strconv.ParseFloat(req.Amount, 64)
+	rechargeReq := &userservice.RechargeRequest{
+		UserID: uint64(req.UserId),
+		Amount: amount,
+	}
+
+	resp, err := s.logic.Recharge(ctx, rechargeReq)
+	if err != nil {
+		return nil, convertError(err)
+	}
+
+	return &v1.RechargeResponse{
+		Code:    0,
+		Message: "充值成功",
+		Balance: resp.Balance,
+	}, nil
+}
+
 // convertError 转换业务错误为 gRPC 错误
 func convertError(err error) error {
 	if err == nil {
@@ -437,6 +458,7 @@ func convertUserToProto(user *model.User) *v1.User {
 		MemberLevel: int32(user.MemberLevel),
 		Points:      int32(user.Points),
 		IsAdmin:     int32(user.IsAdmin),
+		Balance:     user.Balance,
 		CreatedAt:   formatTime(&user.CreatedAt),
 		UpdatedAt:   formatTime(&user.UpdatedAt),
 	}

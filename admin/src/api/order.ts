@@ -67,3 +67,8 @@ export const shipOrder = (id: number, data?: { company_code?: string; logistics_
   return request.post<{ code: number; message: string }>(`/v1/orders/${id}/ship`, data || {})
 }
 
+// 获取订单统计
+export const getOrderStats = () => {
+  return request.get<{ code: number; message: string; totalOrders?: number; totalSales?: string; todayOrders?: number }>('/v1/orders/stats')
+}
+

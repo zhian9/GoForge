@@ -14,6 +14,14 @@ const (
 	PaymentStatusRefunded int8 = 3 // 已退款
 )
 
+// PaymentMethod 支付方式
+const (
+	PaymentMethodWechat   int8 = 1 // 微信
+	PaymentMethodAlipay   int8 = 2 // 支付宝
+	PaymentMethodUnionPay int8 = 3 // 银联
+	PaymentMethodBalance  int8 = 4 // 余额
+)
+
 // Payment 支付单模型
 type Payment struct {
 	ID                 uint64     `gorm:"primaryKey;column:id" json:"id"`

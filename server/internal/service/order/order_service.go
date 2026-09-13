@@ -193,6 +193,21 @@ func (s *OrderService) ShipOrder(ctx context.Context, req *v1.ShipOrderRequest) 
 	}, nil
 }
 
+// GetStats 获取统计数据
+func (s *OrderService) GetStats(ctx context.Context, req *v1.GetStatsRequest) (*v1.GetStatsResponse, error) {
+	resp, err := s.logic.GetStats(ctx, &service.GetStatsRequest{})
+	if err != nil {
+		return nil, convertError(err)
+	}
+	return &v1.GetStatsResponse{
+		Code:        0,
+		Message:     "成功",
+		TotalOrders: resp.TotalOrders,
+		TotalSales:  fmt.Sprintf("%.2f", resp.TotalSales),
+		TodayOrders: resp.TodayOrders,
+	}, nil
+}
+
 // convertError 转换业务错误为 gRPC 错误
 func convertError(err error) error {
 	if err == nil {

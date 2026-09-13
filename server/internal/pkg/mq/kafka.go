@@ -179,7 +179,7 @@ type MessageHandler func(ctx context.Context, message *Message) error
 func NewConsumer(cfg *Config) (*Consumer, error) {
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.NewBalanceStrategyRoundRobin()
-	config.Consumer.Offsets.Initial = sarama.OffsetNewest
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 	config.Version, _ = sarama.ParseKafkaVersion(cfg.Version)
 
 	consumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.ConsumerGroup, config)

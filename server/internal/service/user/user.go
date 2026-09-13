@@ -98,6 +98,7 @@ func NewUserService(svcCtx *ServiceContext) *UserService {
 		svcCtx.CredentialRepo,
 		svcCtx.AddressRepo,
 		svcCtx.Cache,
+		svcCtx.DB,
 	)
 
 	// 创建地址业务逻辑层
