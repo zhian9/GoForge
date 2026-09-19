@@ -2,9 +2,9 @@ package repository
 
 import (
 	"context"
-	"github.com/zhian9/GoForge/server/internal/pkg/search"
 	"fmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/zhian9/GoForge/server/internal/pkg/search"
 )
 
 // SearchRepository 搜索仓库接口

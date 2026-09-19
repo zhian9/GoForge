@@ -2,6 +2,8 @@ package search
 
 import (
 	"context"
+	"strconv"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"gorm.io/gorm"
@@ -114,5 +116,51 @@ func NewServiceContext(c Config) *ServiceContext {
 		}
 	}
 
+	// 启动时做一次全量索引重建（异步，不阻塞启动）。
+	//
+	// 为什么必须有这一步：增量同步依赖 outbox 事件，而 outbox 事件只在
+	// 「通过接口变更商品」时才产生。像 seed.sql 直接 INSERT 的商品永远不会被索引，
+	// 结果是索引长期不完整（实测：MySQL 11 个商品，ES 里只有 3 个）。
+	go func() {
+		if err := ctx.ReindexAllProducts(context.Background()); err != nil {
+			logx.Errorf("启动时全量重建索引失败: %v", err)
+		}
+	}()
+
 	return ctx
+}
+
+// ReindexAllProducts 把 MySQL 里全部在售商品重新写入 ES。
+//
+// 索引是按 product_id 覆盖写，所以重复执行幂等，不会产生重复文档。
+func (s *ServiceContext) ReindexAllProducts(ctx context.Context) error {
+	if s.ESClient == nil || s.SnapshotRepo == nil {
+		logx.Info("跳过全量重建：ES 客户端或商品快照仓储未初始化")
+		return nil
+	}
+
+	ids, err := s.SnapshotRepo.ListAllProductIDs(ctx)
+	if err != nil {
+		return err
+	}
+
+	ok, failed := 0, 0
+	for _, id := range ids {
+		doc, err := s.SnapshotRepo.BuildProductDocument(ctx, id)
+		if err != nil {
+			logx.Errorf("构建商品文档失败 product_id=%d: %v", id, err)
+			failed++
+			continue
+		}
+		if err := s.ESClient.IndexDocument(ctx, repository.ProductIndexName,
+			strconv.FormatUint(id, 10), doc); err != nil {
+			logx.Errorf("写入 ES 失败 product_id=%d: %v", id, err)
+			failed++
+			continue
+		}
+		ok++
+	}
+
+	logx.Infof("全量重建索引完成: 成功 %d, 失败 %d, 合计 %d", ok, failed, len(ids))
+	return nil
 }

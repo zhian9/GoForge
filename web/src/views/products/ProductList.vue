@@ -110,6 +110,7 @@ import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { ElMessage } from 'element-plus'
 import { getProductList } from '@/api/product'
+import { searchProducts } from '@/api/search'
 import { getCategoryTree } from '@/api/category'
 import { addItem } from '@/api/cart'
 import { getDefaultSkuId } from '@/api/sku'
@@ -185,6 +186,32 @@ const addToCart = async (p: Product) => {
 const fetchProducts = async () => {
   loading.value = true
   try {
+    // 有关键词时走 Elasticsearch 全文检索；没有关键词时仍走商品列表接口。
+    // 这样搜索能用到分词/相关性排序，而普通浏览不受影响。
+    if (keyword.value) {
+      const r = await searchProducts({
+        keyword: keyword.value,
+        page: currentPage.value,
+        pageSize: pageSize.value,
+        categoryId: selectedCategoryId.value ?? undefined,
+        sortBy: sortBy.value,
+      }) as any
+      if (r.code === 0) {
+        // ES 返回的是精简文档（只含列表需要的字段），这里映射成列表页使用的 Product 结构
+        products.value = (r.data || []).map((it: any) => ({
+          id: Number(it.productId),
+          name: it.name,
+          price: Number(it.price || 0),
+          main_image: it.mainImage,
+          sales: Number(it.sales || 0),
+        })) as unknown as Product[]
+        total.value = Number(r.total || (r.data ? r.data.length : 0))
+      } else {
+        products.value = []; total.value = 0
+      }
+      return
+    }
+
     const params: any = { page:currentPage.value, page_size:pageSize.value, status:1 }
     if (selectedCategoryId.value) params.category_id = selectedCategoryId.value
     if (keyword.value) params.keyword = keyword.value

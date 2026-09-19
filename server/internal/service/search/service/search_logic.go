@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"strconv"
+
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/service/search/repository"
 )
@@ -55,12 +57,14 @@ func (l *SearchLogic) SearchProducts(ctx context.Context, req *SearchProductsReq
 		if r == nil {
 			continue
 		}
-		productID, _ := r["product_id"].(int64)
+		// ES 返回的 JSON 数字在 Go 里统一解码成 float64，
+		// 之前按 int64 / int 断言会静默失败（product_id 变成 0、sales 变成 0）。
+		productID := toInt64(r["product_id"])
 		name, _ := r["name"].(string)
 		mainImage, _ := r["main_image"].(string)
-		price, _ := r["price"].(float64)
-		sales, _ := r["sales"].(int)
-		score, _ := r["score"].(float64)
+		price := toFloat64(r["price"])
+		sales := int(toInt64(r["sales"]))
+		score := toFloat64(r["score"])
 
 		products = append(products, &ProductSearchResult{
 			ProductID: productID,
@@ -76,6 +80,44 @@ func (l *SearchLogic) SearchProducts(ctx context.Context, req *SearchProductsReq
 		Results: products,
 		Total:   total,
 	}, nil
+}
+
+// toInt64 把 ES 返回的数值转成 int64。
+// ES 的 JSON 数字统一是 float64，用 int64/int 直接断言会失败并静默变成 0。
+func toInt64(v interface{}) int64 {
+	switch x := v.(type) {
+	case nil:
+		return 0
+	case int64:
+		return x
+	case int:
+		return int64(x)
+	case float64:
+		return int64(x)
+	case string:
+		n, _ := strconv.ParseInt(x, 10, 64)
+		return n
+	default:
+		return 0
+	}
+}
+
+func toFloat64(v interface{}) float64 {
+	switch x := v.(type) {
+	case nil:
+		return 0
+	case float64:
+		return x
+	case int64:
+		return float64(x)
+	case int:
+		return float64(x)
+	case string:
+		f, _ := strconv.ParseFloat(x, 64)
+		return f
+	default:
+		return 0
+	}
 }
 
 // GetSearchSuggestionsRequest 获取搜索建议请求

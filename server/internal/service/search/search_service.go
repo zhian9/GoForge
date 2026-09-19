@@ -102,6 +102,18 @@ func (s *SearchService) GetHotKeywords(ctx context.Context, req *v1.GetHotKeywor
 
 // BuildProductIndex 构建商品索引
 func (s *SearchService) BuildProductIndex(ctx context.Context, req *v1.BuildProductIndexRequest) (*v1.BuildProductIndexResponse, error) {
+	// 不传 product_ids 表示「全量重建」——这是种子数据（直插 MySQL、不产生 outbox 事件）
+	// 也能进入索引的唯一途径。
+	if len(req.ProductIds) == 0 {
+		if err := s.svcCtx.ReindexAllProducts(ctx); err != nil {
+			return nil, convertError(err)
+		}
+		return &v1.BuildProductIndexResponse{
+			Code:    0,
+			Message: "全量重建完成",
+		}, nil
+	}
+
 	productIDs := make([]uint64, 0, len(req.ProductIds))
 	for _, id := range req.ProductIds {
 		productIDs = append(productIDs, uint64(id))

@@ -13,6 +13,8 @@ import (
 // ProductSnapshotRepository 从 MySQL 读取商品/SKU 快照，组装 ES 文档
 type ProductSnapshotRepository interface {
 	BuildProductDocument(ctx context.Context, productID uint64) (map[string]interface{}, error)
+	// ListAllProductIDs 列出所有可上架商品 ID，用于全量重建索引
+	ListAllProductIDs(ctx context.Context) ([]uint64, error)
 }
 
 type productSnapshotRepo struct {
@@ -21,6 +23,23 @@ type productSnapshotRepo struct {
 
 func NewProductSnapshotRepository(db *gorm.DB) ProductSnapshotRepository {
 	return &productSnapshotRepo{db: db}
+}
+
+// ListAllProductIDs 返回所有未删除且在售的商品 ID。
+//
+// 用途：全量重建索引。种子数据是直接 INSERT 进 MySQL 的、不会产生 outbox 事件，
+// 所以只靠增量同步永远索引不全——必须有一次全量兜底。
+func (r *productSnapshotRepo) ListAllProductIDs(ctx context.Context) ([]uint64, error) {
+	if r.db == nil {
+		return nil, fmt.Errorf("db 未初始化")
+	}
+	var ids []uint64
+	err := r.db.WithContext(ctx).
+		Table("product").
+		Where("deleted_at IS NULL AND status = ?", 1).
+		Order("id ASC").
+		Pluck("id", &ids).Error
+	return ids, err
 }
 
 type productRow struct {

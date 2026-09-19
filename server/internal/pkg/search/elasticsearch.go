@@ -148,6 +148,11 @@ func (c *Client) Search(ctx context.Context, indexName string, query map[string]
 		}
 		source, ok := hitMap["_source"].(map[string]interface{})
 		if ok {
+			// 把相关性得分一并带出：_score 在 _source 之外，
+			// 之前没取，导致上层拿到的 score 永远是 0。
+			if score, ok := hitMap["_score"].(float64); ok {
+				source["score"] = score
+			}
 			documents = append(documents, source)
 		}
 	}
