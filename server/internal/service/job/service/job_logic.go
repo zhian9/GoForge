@@ -2,8 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+	"github.com/zeromicro/go-zero/core/logx"
+
+	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/service/job/repository"
 )
@@ -12,6 +17,8 @@ import (
 type JobLogic struct {
 	orderRepo  repository.OrderRepository
 	couponRepo repository.CouponRepository
+	redis      *redis.Client // 用于释放秒杀闸门配额（可能为 nil）
+	batchLimit int           // 单次最多处理多少笔超时订单
 	// 可后续扩展统计专用仓库
 	// statsRepo  repository.StatisticsRepository
 }
@@ -20,10 +27,17 @@ type JobLogic struct {
 func NewJobLogic(
 	orderRepo repository.OrderRepository,
 	couponRepo repository.CouponRepository,
+	redisClient *redis.Client,
+	batchLimit int,
 ) *JobLogic {
+	if batchLimit <= 0 {
+		batchLimit = 200
+	}
 	return &JobLogic{
 		orderRepo:  orderRepo,
 		couponRepo: couponRepo,
+		redis:      redisClient,
+		batchLimit: batchLimit,
 	}
 }
 
@@ -39,14 +53,52 @@ type CancelExpiredOrdersResponse struct {
 
 // CancelExpiredOrders 订单超时取消
 func (l *JobLogic) CancelExpiredOrders(ctx context.Context, req *CancelExpiredOrdersRequest) (*CancelExpiredOrdersResponse, error) {
-	count, err := l.orderRepo.CancelExpiredOrders(ctx, req.TimeoutMinutes)
+	cancelled, err := l.orderRepo.CancelExpiredOrders(ctx, req.TimeoutMinutes, l.batchLimit)
 	if err != nil {
 		return nil, apperrors.NewInternalError("取消超时订单失败")
 	}
 
+	// 秒杀订单占用的库存有两个地方：MySQL 的 sku.stock（真源，上面已回补）
+	// 和 Redis 的 seckill:stock:{skuId}（闸门）。只回补真源不释放闸门，
+	// 秒杀配额就永久损失了，用户也会被防重 key 锁住不能重抢。
+	for _, o := range cancelled {
+		if o.OrderType != repository.OrderTypeSeckill {
+			continue
+		}
+		for _, item := range o.Items {
+			l.releaseSeckillQuota(ctx, item.SkuID, o.UserID, item.Quantity)
+		}
+	}
+
 	return &CancelExpiredOrdersResponse{
-		CancelledCount: count,
+		CancelledCount: int64(len(cancelled)),
 	}, nil
+}
+
+// releaseSeckillQuota 释放一次秒杀预扣：闸门库存回补 + 删除用户防重标记。
+//
+// 复用秒杀服务里同一个 Lua 脚本（LuaScriptSeckillRollback），保证「退库存」和
+// 「删防重标记」原子完成——分两步做一旦中途失败，会留下"库存退了但用户还被锁着"
+// 这类更难查的状态。
+//
+// Redis 不可用时只记日志：真源库存已经回补，这里失败不会造成资损，
+// 属于可降级的补偿动作。
+func (l *JobLogic) releaseSeckillQuota(ctx context.Context, skuID, userID uint64, quantity int) {
+	if l.redis == nil || quantity <= 0 {
+		return
+	}
+
+	stockKey := fmt.Sprintf("seckill:stock:%d", skuID)
+	userKey := fmt.Sprintf("seckill:user:%d:%d", skuID, userID)
+
+	if _, err := cache.ExecuteLuaScript(ctx, l.redis, cache.LuaScriptSeckillRollback,
+		[]string{stockKey, userKey}, quantity); err != nil {
+		logx.Errorf("释放秒杀配额失败（真源库存已回补，仅闸门配额未释放）: sku_id=%d, user_id=%d, quantity=%d, err=%v",
+			skuID, userID, quantity, err)
+		return
+	}
+
+	logx.Infof("超时取消已释放秒杀配额: sku_id=%d, user_id=%d, quantity=%d", skuID, userID, quantity)
 }
 
 // ProcessExpiredCouponsRequest 优惠券过期处理请求

@@ -22,6 +22,8 @@ func NewJobService(svcCtx *ServiceContext) *JobService {
 	logic := service.NewJobLogic(
 		svcCtx.OrderRepo,
 		svcCtx.CouponRepo,
+		svcCtx.Redis,
+		svcCtx.Config.CancelExpiredOrder.BatchLimit,
 	)
 
 	return &JobService{

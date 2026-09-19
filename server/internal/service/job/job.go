@@ -1,10 +1,13 @@
 package job
 
 import (
-	"github.com/zhian9/GoForge/server/internal/service/job/repository"
+	"github.com/redis/go-redis/v9"
+
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zhian9/GoForge/server/internal/service/job/repository"
 	"gorm.io/gorm"
 
+	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	"github.com/zhian9/GoForge/server/internal/pkg/database"
 )
 
@@ -12,6 +15,7 @@ import (
 type ServiceContext struct {
 	Config     Config
 	DB         *gorm.DB
+	Redis      *redis.Client
 	OrderRepo  repository.OrderRepository
 	CouponRepo repository.CouponRepository
 }
@@ -40,6 +44,27 @@ func NewServiceContext(c Config) *ServiceContext {
 	ctx := &ServiceContext{
 		Config: c,
 		DB:     db,
+	}
+
+	// 初始化 Redis：用于「超时取消秒杀订单」时释放闸门配额。
+	// 连接失败不阻断启动——真源库存的回补不依赖 Redis，
+	// 只是秒杀配额释放会降级，日志里会明确记录。
+	if c.BizRedis.Host != "" {
+		redisClient, err := cache.NewRedis(&cache.Config{
+			Host:         c.BizRedis.Host,
+			Port:         c.BizRedis.Port,
+			Password:     c.BizRedis.Password,
+			Database:     c.BizRedis.Database,
+			PoolSize:     c.BizRedis.PoolSize,
+			MinIdleConns: c.BizRedis.MinIdleConns,
+		})
+		if err != nil {
+			logx.Errorf("初始化 Redis 连接失败（秒杀配额释放将降级）: %v", err)
+		} else {
+			ctx.Redis = redisClient
+		}
+	} else {
+		logx.Info("未配置 BizRedis，跳过 Redis 初始化（秒杀配额释放将降级）")
 	}
 
 	if db != nil {
