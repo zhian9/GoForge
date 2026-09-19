@@ -128,6 +128,31 @@ const LuaScriptSeckill = `
 	return new_stock
 `
 
+// LuaScriptSeckillRollback 秒杀预扣回滚脚本（原子）
+//
+// 使用场景：Redis 已经扣了库存、也标记了用户，但后续步骤失败（例如 Kafka 发送失败）。
+// 此时如果只是返回错误而不回滚，会造成两个后果：
+//  1. 库存被扣掉但没有产生订单 —— 库存凭空蒸发；
+//  2. 防重 key 仍然存在 —— 用户在 24 小时内无法重试，既没抢到又被锁死。
+//
+// 所以「退库存」和「删防重标记」必须在同一个脚本里原子完成，否则会退了一半。
+//
+// KEYS[1]: 库存key (seckill:stock:{skuId})
+// KEYS[2]: 用户key (seckill:user:{skuId}:{uid})
+// ARGV[1]: 回滚数量
+// 返回: 回滚后的库存
+const LuaScriptSeckillRollback = `
+	local quantity = tonumber(ARGV[1])
+	if not quantity or quantity <= 0 then
+		quantity = 1
+	end
+
+	local new_stock = redis.call("incrby", KEYS[1], quantity)
+	redis.call("del", KEYS[2])
+
+	return new_stock
+`
+
 // ExecuteLuaScript 执行Lua脚本
 func ExecuteLuaScript(ctx context.Context, client *redis.Client, script string, keys []string, args ...interface{}) (interface{}, error) {
 	// 使用 Eval 执行原始 Lua 脚本

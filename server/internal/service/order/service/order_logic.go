@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
 	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/order/model"
 	"github.com/zhian9/GoForge/server/internal/service/order/repository"
-	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc/metadata"
 	"gorm.io/gorm"
 )
@@ -153,11 +153,11 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 		item := &model.OrderItem{
 			OrderID:     order.ID,
 			OrderNo:     orderNo,
-			ProductID:   0,            // 需要从商品服务获取
+			ProductID:   0,              // 需要从商品服务获取
 			ProductName: it.ProductName, // 需要从商品服务获取
 			SkuID:       it.SkuID,
-			SkuCode:     "",           // 需要从商品服务获取
-			SkuName:     "",           // 需要从商品服务获取
+			SkuCode:     "", // 需要从商品服务获取
+			SkuName:     "", // 需要从商品服务获取
 			Price:       it.Price,
 			Quantity:    it.Quantity,
 			TotalAmount: it.Price * float64(it.Quantity),
@@ -475,6 +475,11 @@ var logisticsCompanyMap = map[string]string{
 
 // jwtSecret 与网关/其他服务保持一致
 const jwtSecret = "goforge-jwt-secret"
+
+// CheckAdmin 供 gRPC handler 层复用的管理员校验（逻辑同 checkAdmin）
+func (l *OrderLogic) CheckAdmin(ctx context.Context) error {
+	return l.checkAdmin(ctx)
+}
 
 // checkAdmin 校验当前调用者是否为管理员（发货等管理操作使用）
 func (l *OrderLogic) checkAdmin(ctx context.Context) error {

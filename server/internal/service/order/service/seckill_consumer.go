@@ -154,15 +154,27 @@ func (c *SeckillConsumer) Consume(ctx context.Context, message *mq.Message) erro
 		return fmt.Errorf("创建订单项失败: %w", err)
 	}
 
+	// 扣减真源库存：必须与订单写在同一个事务里。
+	//
+	// 这里原先的实现是「先提交订单 → 再扣 sku.stock → 失败只打日志」，后果是：
+	// 只要 Redis 闸门放行的数量超过 sku.stock（例如秒杀活动配的库存大于实际库存），
+	// 那句 UPDATE ... WHERE stock >= ? 就会影响 0 行，而订单已经提交，
+	// 于是产生「有订单、没扣库存」的脏数据，真源与订单脱节。
+	//
+	// 现在把扣减放进同一事务：库存不足 → 整个订单回滚，不会留下无库存支撑的订单。
+	// cacheOps 传 nil，缓存失效等到事务提交后再做（回滚时不必做无意义的缓存失效）。
+	if err := deductStock(ctx, tx, nil, uint64(seckillMsg.SkuID), seckillMsg.Quantity); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("秒杀订单扣减真源库存失败，订单已回滚: %w", err)
+	}
+
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
 	}
 
-	// 扣减库存（sku.stock + inventory）
-	if err := deductStock(ctx, c.db, c.cache, uint64(seckillMsg.SkuID), seckillMsg.Quantity); err != nil {
-		logx.Errorf("秒杀订单扣减库存失败 sku_id=%d: %v", seckillMsg.SkuID, err)
-	}
+	// 事务提交成功后再失效商品缓存（列表 / 详情 / SKU 信息）
+	invalidateProductCache(ctx, c.db, c.cache, uint64(seckillMsg.SkuID))
 
 	logx.Infof("秒杀订单创建成功: order_no=%s, user_id=%d, sku_id=%d",
 		orderNo, seckillMsg.UserID, seckillMsg.SkuID)

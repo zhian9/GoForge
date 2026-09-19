@@ -2,13 +2,14 @@ package seckill
 
 import (
 	"context"
+	"fmt"
+	"github.com/zeromicro/go-zero/core/logx"
 	v1 "github.com/zhian9/GoForge/server/api/seckill/v1"
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/seckill/model"
 	"github.com/zhian9/GoForge/server/internal/service/seckill/repository"
-	"fmt"
-	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"math"
@@ -18,10 +19,15 @@ import (
 
 // Seckill 秒杀下单
 func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*v1.SeckillResponse, error) {
-	//1.参数验证
-	if req.UserId == 0 {
-		return nil, status.Error(codes.InvalidArgument, "用户ID不能为空")
+	// 关键安全修复：抢购人只能是当前登录用户（由 AuthInterceptor 从 token 注入），
+	// 不能相信请求体里的 user_id —— 否则任何人不带 token、随便填一个 user_id
+	// 就能替别人抢购，还会占掉对方的「一人一单」名额。
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
+
+	//1.参数验证
 	if req.SkuId == 0 {
 		return nil, status.Error(codes.InvalidArgument, "SKU ID 不能为空")
 	}
@@ -50,7 +56,7 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 
 	//Redis Lua 脚本执行：防超卖 + 防重复
 	stockKey := fmt.Sprintf("seckill:stock:%d", req.SkuId)
-	userKey := fmt.Sprintf("seckill:user:%d:%d", req.SkuId, req.UserId)
+	userKey := fmt.Sprintf("seckill:user:%d:%d", req.SkuId, userID)
 
 	result, err := cache.ExecuteLuaScript(ctx, s.svcCtx.Redis, cache.LuaScriptSeckill, []string{stockKey, userKey}, quantity)
 	if err != nil {
@@ -89,10 +95,12 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 		}, nil
 	case code >= 0:
 		//成功 :发送kafka消息
+		// 注意 quantity 必须用兜底后的值：Lua 脚本里 quantity<=0 时会按 1 扣减，
+		// 如果这里回传原始的 req.Quantity(可能是 0)，就会出现「Redis 扣 1 件、订单记 0 件」的账目不一致。
 		seckillMsg := map[string]interface{}{
-			"user_id":   req.UserId,
+			"user_id":   userID,
 			"sku_id":    req.SkuId,
-			"quantity":  req.Quantity,
+			"quantity":  quantity,
 			"timestamp": time.Now().Unix(),
 		}
 
@@ -102,10 +110,14 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 		partitionKey := strconv.FormatInt(req.SkuId, 10)
 		if err := s.svcCtx.MQProducer.PublishWithKey(ctx, mq.TopicSeckillOrder, partitionKey, message); err != nil {
 			logx.Errorf("发送秒杀消息到kafka失败: %v", err)
+			// 关键补偿：走到这里说明 Redis 已经扣了库存、也写了防重标记。
+			// 如果直接返回失败，用户会被防重 key 锁死（既没抢到、24 小时内也不能再抢），
+			// 库存也会凭空少掉且无人认领。因此必须把预扣的这两步一起回滚。
+			s.rollbackSeckill(ctx, req.SkuId, int64(userID), quantity)
 			return nil, status.Error(codes.Internal, "秒杀失败, 请稍后重试")
 		}
 
-		logx.Infof("秒杀成功： user_id=%d, sku_id=%d, quantity=%d", req.UserId, req.SkuId, quantity)
+		logx.Infof("秒杀成功： user_id=%d, sku_id=%d, quantity=%d", userID, req.SkuId, quantity)
 
 		return &v1.SeckillResponse{
 			Code:    0,
@@ -284,6 +296,11 @@ func (s *SeckillService) CreateSeckillActivity(ctx context.Context, req *v1.Crea
 		return nil, status.Error(codes.InvalidArgument, "活动时间不合法")
 	}
 
+	// 活动库存不能超过商品真源库存，否则 Redis 闸门会超发
+	if err := s.validateActivityStock(ctx, req.SkuId, req.Stock); err != nil {
+		return nil, err
+	}
+
 	price, err := strconv.ParseFloat(req.SeckillPrice, 64)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "秒杀价格式不合法")
@@ -358,6 +375,11 @@ func (s *SeckillService) UpdateSeckillActivity(ctx context.Context, req *v1.Upda
 	}
 	if req.StartTime <= 0 || req.EndTime <= 0 || req.EndTime <= req.StartTime {
 		return nil, status.Error(codes.InvalidArgument, "活动时间不合法")
+	}
+
+	// 活动库存不能超过商品真源库存，否则 Redis 闸门会超发
+	if err := s.validateActivityStock(ctx, req.SkuId, req.Stock); err != nil {
+		return nil, err
 	}
 
 	price, err := strconv.ParseFloat(req.SeckillPrice, 64)
@@ -441,6 +463,56 @@ func calcActivityStatus(start, end, now int64) int32 {
 		return 2
 	}
 	return 1
+}
+
+// rollbackSeckill 回滚一次秒杀预扣（库存 + 防重标记）。
+//
+// 只在"Redis 扣减已经成功、但后续步骤失败"的分支调用，
+// 例如 Kafka 发送失败。回滚本身失败时只记录日志——此时库存与用户标记可能不一致，
+// 需要靠后续的对账补偿任务兜底，不能在这里再抛错掩盖原始失败原因。
+func (s *SeckillService) rollbackSeckill(ctx context.Context, skuID, userID int64, quantity int32) {
+	if s.svcCtx.Redis == nil {
+		return
+	}
+
+	stockKey := fmt.Sprintf("seckill:stock:%d", skuID)
+	userKey := fmt.Sprintf("seckill:user:%d:%d", skuID, userID)
+
+	if _, err := cache.ExecuteLuaScript(ctx, s.svcCtx.Redis, cache.LuaScriptSeckillRollback,
+		[]string{stockKey, userKey}, quantity); err != nil {
+		logx.Errorf("秒杀预扣回滚失败，需要靠对账补偿: sku_id=%d, user_id=%d, quantity=%d, err=%v",
+			skuID, userID, quantity, err)
+		return
+	}
+
+	logx.Infof("秒杀预扣已回滚: sku_id=%d, user_id=%d, quantity=%d", skuID, userID, quantity)
+}
+
+// validateActivityStock 校验秒杀活动配置的库存不超过商品的真源库存。
+//
+// 为什么必须校验：Redis 里的秒杀库存（闸门）和 MySQL 的 sku.stock（真源）是两个独立数字。
+// 如果活动库存配得比真源还大，Redis 会照常放行，但消费端扣真源库存时
+// UPDATE ... WHERE stock >= ? 会影响 0 行 —— 即使消费端做了回滚，用户也已经被扣了防重标记、
+// 白抢一场；更糟的是如果消费端没做回滚，就会留下「有订单、没扣库存」的脏数据。
+// 所以从源头堵住：活动库存必须在真源库存范围内。
+func (s *SeckillService) validateActivityStock(ctx context.Context, skuID int64, stock int32) error {
+	if s.svcCtx.DB == nil {
+		// 数据库不可用时不阻断主流程（此时活动本身也无法持久化）
+		return nil
+	}
+
+	var realStock int64
+	if err := s.svcCtx.DB.WithContext(ctx).Table("sku").
+		Select("stock").Where("id = ?", skuID).Scan(&realStock).Error; err != nil {
+		logx.Errorf("查询商品真源库存失败: sku_id=%d, err=%v", skuID, err)
+		return status.Error(codes.Internal, "查询商品库存失败")
+	}
+
+	if int64(stock) > realStock {
+		return status.Errorf(codes.InvalidArgument,
+			"活动库存(%d)不能超过商品实际库存(%d)", stock, realStock)
+	}
+	return nil
 }
 
 // convertError 转换业务错误为 gRPC 错误
