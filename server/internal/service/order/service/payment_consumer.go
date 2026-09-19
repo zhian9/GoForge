@@ -27,10 +27,10 @@ func NewPaymentConsumer(orderRepo repository.OrderRepository, db *gorm.DB, cache
 
 // paymentSuccessMessage 支付成功事件
 type paymentSuccessMessage struct {
-	OrderID       uint64 `json:"order_id"`
-	OrderNo       string `json:"order_no"`
-	PaymentNo     string `json:"payment_no"`
-	PaymentMethod int8   `json:"payment_method"`
+	OrderID       uint64  `json:"order_id"`
+	OrderNo       string  `json:"order_no"`
+	PaymentNo     string  `json:"payment_no"`
+	PaymentMethod int8    `json:"payment_method"`
 	Amount        float64 `json:"amount"`
 }
 
