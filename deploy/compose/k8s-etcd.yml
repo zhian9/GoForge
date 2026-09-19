@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════
+# GoForge — k8s 专用 etcd（独立编排文件，与主 compose 解耦）
+# ═══════════════════════════════════════════════════════════
+#
+# 为什么单独一个文件：
+#   deploy/k8s 下的部署是「混合模式」——k8s 里只跑 Go 服务，基础设施复用 compose。
+#   如果两套服务注册到同一个 etcd、写同一个 key（例如 seckill.rpc），
+#   网关拿到的实例列表会把两套混在一起、请求被负载均衡到两套上，
+#   造成「同一份代码两个版本同时在线」的现象（压测数据失真、修复看起来不生效）。
+#   所以 k8s 需要独立的注册中心。它只服务于 k8s，不该混在主 compose 里，
+#   于是单独拆成这个文件：不跑 k8s 的时候，主 compose 完全不涉及它。
+#
+# 用法：
+#   docker compose -f k8s-etcd.yml up -d       # 只有要用 k8s 时才启动
+#   docker compose -f k8s-etcd.yml down        # 停止（保留数据卷）
+#   docker compose -f k8s-etcd.yml down -v     # 停止并清空注册数据
+#
+# 配套关系（改地址时三处要同步）：
+#   configs/k8s/*.yaml            Etcd.Hosts: 172.18.0.1:12389
+#   deploy/k8s/configmap.yaml     同上（k8s 实际挂载的是这份 ConfigMap）
+#
+# k8s 服务的连接方式：pod 通过宿主机地址 172.18.0.1 回连本容器的宿主映射端口 12389，
+# 所以不需要和主 compose 共用一个 Docker 网络。
+# ═══════════════════════════════════════════════════════════
+
+# 独立项目名：否则两个 yml 在同一个目录下会共用 compose 项目名（取目录名 compose），
+# 导致操作本文件时把主项目的容器识别成 orphan —— 一旦有人执行 down --remove-orphans，
+# 会把整套主环境的容器一起删掉。
+name: goforge-k8s
+
+services:
+  etcd-k8s:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: goforge-etcd-k8s
+    restart: unless-stopped
+    command:
+      - /usr/local/bin/etcd
+      - --name=goforge-etcd-k8s
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      # k8s 里的服务通过宿主机地址回连，所以 advertise 成宿主端口，
+      # 避免 etcd 返回容器内不可解析的主机名。
+      - --advertise-client-urls=http://172.18.0.1:12389
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://goforge-etcd-k8s:2380
+      - --initial-cluster=goforge-etcd-k8s=http://goforge-etcd-k8s:2380
+      - --initial-cluster-token=goforge-k8s
+      - --initial-cluster-state=new
+    ports:
+      - "12389:2379"
+      - "12390:2380"
+    volumes:
+      - etcd-k8s-data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=localhost:2379"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+# 显式命名，避免项目名变化后数据卷对不上
+volumes:
+  etcd-k8s-data:
+    name: goforge-etcd-k8s-data
+
+# 独立网络：不依赖主 compose 的 goforge-net（k8s 是从宿主机端口回连的）
+networks:
+  default:
+    name: goforge-k8s-net
+    driver: bridge

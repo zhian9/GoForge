@@ -33,13 +33,10 @@ Upstreams:
   # 用户服务
   - Name: user-service
     Grpc:
-      # etcd 服务发现（开发环境可使用直连）
-      # Etcd:
-      #   Hosts:
-      #     - localhost:2379
-      #   Key: user-service.rpc
-      # 直连模式（开发环境）
-      Target: 127.0.0.1:8000
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: user.rpc
       Timeout: 2000
     # protoDescriptor 模式：需要 proto 文件（生产环境）
     # ProtoSets:
@@ -114,7 +111,10 @@ Upstreams:
   # 商品服务
   - Name: product-service
     Grpc:
-      Target: 127.0.0.1:8081
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: product.rpc
       Timeout: 2000
     Mappings:
       - Method: options
@@ -213,7 +213,10 @@ Upstreams:
   # 秒杀服务
   - Name: seckill-service
     Grpc:
-      Target: 127.0.0.1:8090
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: seckill.rpc
       Timeout: 3000
     Mappings:
       - Method: options
@@ -244,10 +247,41 @@ Upstreams:
         Path: /api/v1/seckill
         RpcPath: seckill.v1.SeckillService/Seckill
 
+  # 搜索服务（Elasticsearch 全文检索）
+  - Name: search-service
+    Grpc:
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: search.rpc
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/search/products
+        RpcPath: search.v1.SearchService/SearchProducts
+      - Method: get
+        Path: /api/v1/search/products
+        RpcPath: search.v1.SearchService/SearchProducts
+      - Method: options
+        Path: /api/v1/search/suggestions
+        RpcPath: search.v1.SearchService/GetSearchSuggestions
+      - Method: get
+        Path: /api/v1/search/suggestions
+        RpcPath: search.v1.SearchService/GetSearchSuggestions
+      - Method: options
+        Path: /api/v1/search/hot-keywords
+        RpcPath: search.v1.SearchService/GetHotKeywords
+      - Method: get
+        Path: /api/v1/search/hot-keywords
+        RpcPath: search.v1.SearchService/GetHotKeywords
+
   # 订单服务
   - Name: order-service
     Grpc:
-      Target: 127.0.0.1:8082
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: order.rpc
       Timeout: 3000
     Mappings:
       - Method: options
@@ -290,7 +324,10 @@ Upstreams:
   # 支付服务
   - Name: payment-service
     Grpc:
-      Target: 127.0.0.1:8083
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: payment.rpc
       Timeout: 5000
     Mappings:
       - Method: options
@@ -327,7 +364,10 @@ Upstreams:
   # 评价服务
   - Name: review-service
     Grpc:
-      Target: 127.0.0.1:8007
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: review.rpc
       Timeout: 3000
     Mappings:
       # 创建评价
@@ -373,7 +413,10 @@ Upstreams:
   # 库存服务
   - Name: inventory-service
     Grpc:
-      Target: 127.0.0.1:8084
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: inventory.rpc
       Timeout: 2000
     Mappings:
       - Method: options
@@ -392,7 +435,10 @@ Upstreams:
   # 物流服务
   - Name: logistics-service
     Grpc:
-      Target: 127.0.0.1:8008
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: logistics.rpc
       Timeout: 3000
     Mappings:
       - Method: options
@@ -432,7 +478,10 @@ Upstreams:
   # 购物车服务
   - Name: cart-service
     Grpc:
-      Target: 127.0.0.1:8085
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: cart.rpc
       Timeout: 2000
     Mappings:
       - Method: options
@@ -475,7 +524,10 @@ Upstreams:
   # 营销服务
   - Name: promotion-service
     Grpc:
-      Target: 127.0.0.1:8006
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: promotion.rpc
       Timeout: 3000
     Mappings:
       - Method: options
@@ -502,7 +554,10 @@ Upstreams:
   # 由主 HTTP 服务器直接处理，完全绕过 Gateway，因为 gRPC Gateway 无法处理 multipart/form-data
   - Name: file-service
     Grpc:
-      Target: 127.0.0.1:8012
+      Etcd:
+        Hosts:
+          - 127.0.0.1:2379
+        Key: file.rpc
       Timeout: 10000
     Mappings:
       # 其他文件服务路由（文件上传不在 Gateway 中配置）

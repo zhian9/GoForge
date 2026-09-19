@@ -1,0 +1,646 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["user"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+        - name: product-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["product"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8081
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["order"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+        - name: payment-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["payment"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8083
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+    spec:
+      containers:
+        - name: inventory-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["inventory"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8084
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+    spec:
+      containers:
+        - name: cart-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["cart"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8085
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: promotion-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: promotion-service
+  template:
+    metadata:
+      labels:
+        app: promotion-service
+    spec:
+      containers:
+        - name: promotion-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["promotion"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8006
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: review-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: review-service
+  template:
+    metadata:
+      labels:
+        app: review-service
+    spec:
+      containers:
+        - name: review-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["review"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8007
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logistics-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logistics-service
+  template:
+    metadata:
+      labels:
+        app: logistics-service
+    spec:
+      containers:
+        - name: logistics-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["logistics"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8008
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: message-service
+  template:
+    metadata:
+      labels:
+        app: message-service
+    spec:
+      containers:
+        - name: message-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["message"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8009
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      containers:
+        - name: search-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["search"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8010
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommend-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommend-service
+  template:
+    metadata:
+      labels:
+        app: recommend-service
+    spec:
+      containers:
+        - name: recommend-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["recommend"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8011
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+    spec:
+      containers:
+        - name: file-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["file"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8012
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-service
+  template:
+    metadata:
+      labels:
+        app: job-service
+    spec:
+      containers:
+        - name: job-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["job"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8013
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seckill-service
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seckill-service
+  template:
+    metadata:
+      labels:
+        app: seckill-service
+    spec:
+      containers:
+        - name: seckill-service
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["seckill"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8090
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service-consumer
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service-consumer
+  template:
+    metadata:
+      labels:
+        app: order-service-consumer
+    spec:
+      containers:
+        - name: order-service-consumer
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["order-service-consumer"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: goforge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: goforge-server:latest
+          imagePullPolicy: IfNotPresent
+          args: ["api-gateway"]
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: FILE_SERVICE_ADDR
+              value: file-service:8012
+          envFrom:
+            - secretRef:
+                name: goforge-secret
+          ports:
+            - containerPort: 8080
+            - containerPort: 8095
+          volumeMounts:
+            - name: config
+              mountPath: /app/configs
+      volumes:
+        - name: config
+          configMap:
+            name: goforge-config

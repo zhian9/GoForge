@@ -50,3 +50,19 @@ Database:
   ConnMaxLifetime: 3600
   ConnMaxIdleTime: 600
 
+# Redis 配置（超时取消秒杀订单时释放闸门配额）
+BizRedis:
+  Host: 127.0.0.1
+  Port: 6379
+  Password: "123456"
+  Database: 0
+  PoolSize: 10
+  MinIdleConns: 5
+
+# 超时未支付订单自动取消
+CancelExpiredOrder:
+  Enable: true
+  IntervalSecond: 60    # 扫描间隔（秒）
+  TimeoutMinutes: 30    # 超过 30 分钟未支付即取消
+  BatchLimit: 200       # 单批最多处理 200 笔
+

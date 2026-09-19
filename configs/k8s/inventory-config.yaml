@@ -1,13 +1,13 @@
 # 服务配置
-Name: product-service
-ListenOn: 0.0.0.0:8081
+Name: inventory-service
+ListenOn: 0.0.0.0:8084
 Mode: dev
 
 # etcd 服务注册发现
 Etcd:
   Hosts:
-    - etcd:2379
-  Key: product.rpc
+    - 172.18.0.1:12389
+  Key: inventory.rpc
 
 # 超时配置
 Timeout: 5000
@@ -28,7 +28,7 @@ Middlewares:
 
 # 日志配置
 Log:
-  ServiceName: product-service
+  ServiceName: inventory-service
   Mode: console
   Level: debug
   Path: logs
@@ -39,14 +39,14 @@ Log:
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0
-  Port: 9090
+  Port: 9093
   Path: /metrics
 
 # 数据库配置
 Database:
   Driver: mysql
-  Host: mysql
-  Port: 3306
+  Host: 172.18.0.1
+  Port: 3307
   User: goforge
   Password: "${DB_PASSWORD}"
   Database: go_forge
@@ -56,17 +56,18 @@ Database:
   ConnMaxLifetime: 3600
   ConnMaxIdleTime: 600
 
-# Redis配置
+# Redis配置（用于库存缓存和分布式锁）
 BizRedis:
-  Host: redis
+  Host: 172.18.0.1
   Port: 6379
   Password: "${REDIS_PASSWORD}"
-  Database: 0
+  Database: 1
   PoolSize: 10
   MinIdleConns: 5
 
-# Kafka 配置（用于 Outbox relay 投递）
+# Kafka配置（用于库存变更事件等异步处理）
 Kafka:
   Brokers:
-    - kafka:29092
-  Version: "2.8.0"
+    - 172.18.0.1:9092
+  Version: 2.8.0
+

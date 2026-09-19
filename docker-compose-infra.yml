@@ -1,0 +1,222 @@
+# ============================================
+# GoForge - 开发环境基础设施（仅 infra，不含微服务）
+#
+# 供本地 dev 进程连接 127.0.0.1，与 scripts/bootstrap.ps1、
+# scripts/start-all.sh 配套使用。
+#
+# 用法:
+#   docker compose -f docker-compose-infra.yml up -d
+#   docker compose -f docker-compose-infra.yml down
+# ============================================
+
+networks:
+  goforge-infra-net:
+    name: goforge-infra-net
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: infra-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-go_forge}
+      MYSQL_USER: goforge
+      MYSQL_PASSWORD: ${DB_PASSWORD:-123456}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - infra-mysql-data:/var/lib/mysql
+      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./server/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: infra-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass ${REDIS_PASSWORD:-123456}
+      - --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - infra-redis-data:/data
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-123456}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.15
+    container_name: infra-etcd
+    restart: unless-stopped
+    command:
+      - /usr/local/bin/etcd
+      - --name=infra-etcd
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://127.0.0.1:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://127.0.0.1:2380
+      - --initial-cluster=infra-etcd=http://127.0.0.1:2380
+      - --initial-cluster-token=goforge-infra
+      - --initial-cluster-state=new
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    volumes:
+      - infra-etcd-data:/etcd-data
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health", "--endpoints=127.0.0.1:2379"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  etcd-keeper:
+    image: evildecay/etcdkeeper:latest
+    container_name: infra-etcd-keeper
+    restart: unless-stopped
+    environment:
+      ETCD_HOSTS: etcd:2379
+    ports:
+      - "8089:8080"
+    networks:
+      - goforge-infra-net
+    depends_on:
+      etcd:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7
+    container_name: infra-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-123456}
+    ports:
+      - "27017:27017"
+    volumes:
+      - infra-mongo-data:/data/db
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: infra-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - infra-es-data:/usr/share/elasticsearch/data
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: infra-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "*"
+    ports:
+      - "2181:2181"
+    volumes:
+      - infra-zk-data:/var/lib/zookeeper/data
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo srvr | nc localhost 2181 | grep Zookeeper"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: infra-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - infra-kafka-data:/var/lib/kafka/data
+    networks:
+      - goforge-infra-net
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: infra-kafka-ui
+    restart: unless-stopped
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    ports:
+      - "18090:8080"
+    networks:
+      - goforge-infra-net
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: infra-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - goforge-infra-net
+
+volumes:
+  infra-mysql-data:
+  infra-redis-data:
+  infra-etcd-data:
+  infra-mongo-data:
+  infra-es-data:
+  infra-zk-data:
+  infra-kafka-data:

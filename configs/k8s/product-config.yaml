@@ -6,7 +6,7 @@ Mode: dev
 # etcd 服务注册发现
 Etcd:
   Hosts:
-    - etcd:2379
+    - 172.18.0.1:12389
   Key: product.rpc
 
 # 超时配置
@@ -45,8 +45,8 @@ Prometheus:
 # 数据库配置
 Database:
   Driver: mysql
-  Host: mysql
-  Port: 3306
+  Host: 172.18.0.1
+  Port: 3307
   User: goforge
   Password: "${DB_PASSWORD}"
   Database: go_forge
@@ -58,7 +58,7 @@ Database:
 
 # Redis配置
 BizRedis:
-  Host: redis
+  Host: 172.18.0.1
   Port: 6379
   Password: "${REDIS_PASSWORD}"
   Database: 0
@@ -68,5 +68,5 @@ BizRedis:
 # Kafka 配置（用于 Outbox relay 投递）
 Kafka:
   Brokers:
-    - kafka:29092
+    - 172.18.0.1:9092
   Version: "2.8.0"

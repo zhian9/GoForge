@@ -3,11 +3,11 @@ Name: inventory-service
 ListenOn: 0.0.0.0:8084
 Mode: dev
 
-# etcd 服务注册发现（开发环境可选）
-# Etcd:
-#   Hosts:
-#     - localhost:2379
-#   Key: inventory-service.rpc
+# etcd 服务注册发现
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: inventory.rpc
 
 # 超时配置
 Timeout: 5000

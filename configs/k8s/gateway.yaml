@@ -35,7 +35,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: user.rpc
       Timeout: 2000
     # protoDescriptor 模式：需要 proto 文件（生产环境）
@@ -113,7 +113,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: product.rpc
       Timeout: 2000
     Mappings:
@@ -215,7 +215,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: seckill.rpc
       Timeout: 3000
     Mappings:
@@ -248,14 +248,11 @@ Upstreams:
         RpcPath: seckill.v1.SeckillService/Seckill
 
   # 搜索服务（Elasticsearch 全文检索）
-  #
-  # 之前这里没有 search 上游，导致索引写入链路虽然通了、但外部根本调不到搜索：
-  # 服务没注册 etcd、网关没路由，等于「只写不读」。
   - Name: search-service
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: search.rpc
       Timeout: 3000
     Mappings:
@@ -277,13 +274,12 @@ Upstreams:
       - Method: get
         Path: /api/v1/search/hot-keywords
         RpcPath: search.v1.SearchService/GetHotKeywords
-
   # 订单服务
   - Name: order-service
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: order.rpc
       Timeout: 3000
     Mappings:
@@ -329,7 +325,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: payment.rpc
       Timeout: 5000
     Mappings:
@@ -369,7 +365,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: review.rpc
       Timeout: 3000
     Mappings:
@@ -418,7 +414,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: inventory.rpc
       Timeout: 2000
     Mappings:
@@ -440,7 +436,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: logistics.rpc
       Timeout: 3000
     Mappings:
@@ -483,7 +479,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: cart.rpc
       Timeout: 2000
     Mappings:
@@ -529,7 +525,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: promotion.rpc
       Timeout: 3000
     Mappings:
@@ -559,7 +555,7 @@ Upstreams:
     Grpc:
       Etcd:
         Hosts:
-          - etcd:2379
+          - 172.18.0.1:12389
         Key: file.rpc
       Timeout: 10000
     Mappings:

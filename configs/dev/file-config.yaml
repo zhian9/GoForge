@@ -3,6 +3,12 @@ Name: file-service
 ListenOn: 0.0.0.0:8012
 Mode: dev
 
+# etcd 服务注册发现
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: file.rpc
+
 # 超时配置
 Timeout: 5000
 

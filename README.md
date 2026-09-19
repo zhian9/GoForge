@@ -16,7 +16,7 @@
 | 监控 | Prometheus + Grafana |
 | 前端 | Vue 3 + Element Plus + Vite |
 | 网关 | go-zero Gateway + Nginx |
-| 部署 | Docker Compose (28 容器) |
+| 部署 | Docker Compose (28 容器) / Kubernetes (本机混合模式) |
 
 ## 项目结构
 
@@ -50,12 +50,14 @@ GoForge/
 ├── configs/                    # 配置文件
 │   ├── dev/                    # 开发环境 (硬编码)
 │   ├── docker/                 # Docker 环境 (${ENV} 占位符)
+│   ├── k8s/                    # Kubernetes 环境 (172.18.0.1 + 宿主端口)
 │   ├── test/                   # 测试环境
 │   └── prod/                   # 生产环境
 ├── admin/                      # Vue3 管理后台 (:80)
 ├── web/                        # Vue3 用户端 (:8088)
-├── deploy/                     # Docker 部署
+├── deploy/                     # 部署
 │   ├── compose/                # docker-compose.yml
+│   ├── k8s/                    # Kubernetes 清单
 │   ├── docker/                 # Dockerfiles
 │   ├── nginx/                  # Nginx 反向代理
 │   ├── prometheus/             # Prometheus 配置
@@ -142,6 +144,17 @@ docker compose up -d            # 启动全部容器
 > docker compose up -d --force-recreate <service>
 > ```
 > 前端改动：`docker compose build admin-builder web-builder && docker compose up -d --force-recreate admin-builder web-builder`
+
+### Kubernetes 部署（本机混合模式）
+
+微服务跑在 k8s，基础设施 + 前端仍在 compose。详见 [docs/K8S_DEPLOYMENT.md](docs/K8S_DEPLOYMENT.md)。
+
+```bash
+# 前提：Docker Desktop 已启用 Kubernetes
+kubectl apply -f deploy/k8s/          # 部署微服务/网关/consumer
+cd deploy/compose && docker compose up -d nginx   # 前端
+# 入口：admin http://localhost/  web http://localhost:8088/  API http://localhost:30080/
+```
 
 ## 测试账号
 

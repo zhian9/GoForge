@@ -1,13 +1,13 @@
 # 服务配置
-Name: logistics-service
-ListenOn: 0.0.0.0:8008
+Name: file-service
+ListenOn: 0.0.0.0:8012
 Mode: dev
 
 # etcd 服务注册发现
 Etcd:
   Hosts:
-    - etcd:2379
-  Key: logistics.rpc
+    - 172.18.0.1:12389
+  Key: file.rpc
 
 # 超时配置
 Timeout: 5000
@@ -28,7 +28,7 @@ Middlewares:
 
 # 日志配置
 Log:
-  ServiceName: logistics-service
+  ServiceName: file-service
   Mode: console
   Level: debug
   Path: logs
@@ -39,20 +39,16 @@ Log:
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0
-  Port: 9098
+  Port: 9102
   Path: /metrics
 
-# 数据库配置
-Database:
-  Driver: mysql
-  Host: mysql
-  Port: 3306
-  User: goforge
-  Password: "${DB_PASSWORD}"
-  Database: go_forge
-  Charset: utf8mb4
-  MaxOpenConns: 100
-  MaxIdleConns: 10
-  ConnMaxLifetime: 3600
-  ConnMaxIdleTime: 600
+# 存储配置
+Storage:
+  Type: local
+  LocalPath: ./uploads
+  OSS:
+    Endpoint: ""
+    AccessKeyID: ""
+    AccessKeySecret: ""
+    BucketName: ""
 

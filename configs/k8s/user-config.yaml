@@ -1,35 +1,35 @@
 # 服务配置
-Name: product-service
-ListenOn: 0.0.0.0:8081
+Name: user-service
+ListenOn: 0.0.0.0:8000
 Mode: dev
 
 # etcd 服务注册发现
 Etcd:
   Hosts:
-    - etcd:2379
-  Key: product.rpc
+    - 172.18.0.1:12389
+  Key: user.rpc
 
 # 超时配置
-Timeout: 5000
+Timeout: 5000  # 超时时间（毫秒），0 表示无超时
 
-# CPU 降载阈值
+# CPU 降载阈值（0-1000，默认 900 即 90%）
 CpuThreshold: 900
 
 # 健康检查
-Health: true
+Health: true  # 是否开启 gRPC 健康检查
 
 # 中间件配置
 Middlewares:
-  Trace: true
-  Recover: true
-  Stat: true
-  Prometheus: true
-  Breaker: true
+  Trace: true       # 链路追踪中间件
+  Recover: true     # 异常捕获中间件
+  Stat: true        # 统计中间件
+  Prometheus: true # Prometheus 指标中间件
+  Breaker: true     # 熔断中间件
 
 # 日志配置
 Log:
-  ServiceName: product-service
-  Mode: console
+  ServiceName: user-service
+  Mode: console  # console, file, volume
   Level: debug
   Path: logs
   Compress: true
@@ -39,14 +39,14 @@ Log:
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0
-  Port: 9090
+  Port: 9091
   Path: /metrics
 
 # 数据库配置
 Database:
   Driver: mysql
-  Host: mysql
-  Port: 3306
+  Host: 172.18.0.1
+  Port: 3307
   User: goforge
   Password: "${DB_PASSWORD}"
   Database: go_forge
@@ -58,15 +58,14 @@ Database:
 
 # Redis配置
 BizRedis:
-  Host: redis
+  Host: 172.18.0.1
   Port: 6379
   Password: "${REDIS_PASSWORD}"
   Database: 0
   PoolSize: 10
   MinIdleConns: 5
 
-# Kafka 配置（用于 Outbox relay 投递）
-Kafka:
-  Brokers:
-    - kafka:29092
-  Version: "2.8.0"
+# JWT配置
+JWT:
+  Secret: "${JWT_SECRET}"
+  Expire: 7200 # 秒

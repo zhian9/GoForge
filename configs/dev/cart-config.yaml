@@ -3,6 +3,12 @@ Name: cart-service
 ListenOn: 0.0.0.0:8085
 Mode: dev
 
+# etcd 服务注册发现
+Etcd:
+  Hosts:
+    - 127.0.0.1:2379
+  Key: cart.rpc
+
 # 超时配置
 Timeout: 5000
 
@@ -66,6 +72,9 @@ JWT:
 
 # 商品服务 gRPC 客户端（用于查询 SKU 价格）
 ProductRpc:
-  Target: 127.0.0.1:8081
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: product.rpc
   Timeout: 2000
 

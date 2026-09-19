@@ -3,6 +3,12 @@ Name: payment-service-service
 ListenOn: 0.0.0.0:8083
 Mode: dev
 
+# etcd 服务注册发现
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: payment.rpc
+
 # 超时配置
 Timeout: 5000
 

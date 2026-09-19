@@ -3,11 +3,11 @@ Name: user-service
 ListenOn: 0.0.0.0:8000
 Mode: dev
 
-# etcd 服务注册发现（开发环境可选，使用直连模式可不配置）
-# Etcd:
-#   Hosts:
-#     - localhost:2379
-#   Key: user-service.rpc
+# etcd 服务注册发现
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: user.rpc
 
 # 超时配置
 Timeout: 5000  # 超时时间（毫秒），0 表示无超时

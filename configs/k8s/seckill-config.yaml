@@ -1,0 +1,32 @@
+Name: seckill-service
+Mode: dev
+ListenOn: 0.0.0.0:8090
+Etcd:
+  Hosts:
+    - 172.18.0.1:12389
+  Key: seckill.rpc
+
+Database:
+  Host: 172.18.0.1
+  Port: 3307
+  User: goforge
+  Password: "${DB_PASSWORD}"
+  Database: go_forge
+  Charset: utf8mb4
+  MaxOpenConns: 100
+  MaxIdleConns: 10
+  ConnMaxLifetime: 3600
+  ConnMaxIdleTime: 600
+
+BizRedis:
+  Host: 172.18.0.1
+  Port: 6379
+  Password: "${REDIS_PASSWORD}"
+  Database: 0
+  PoolSize: 10
+  MinIdleConns: 5
+
+Kafka:
+  Brokers:
+    - 172.18.0.1:9092
+  Version: 2.8.0

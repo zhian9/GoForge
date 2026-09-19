@@ -23,7 +23,6 @@ x-common: &common
   restart: unless-stopped
   networks:
     - goforge-net
-
 x-microservice: &micro
   <<: *common
   image: goforge-server:${GOFORGE_TAG:-latest}
@@ -99,8 +98,8 @@ services:
       - --initial-cluster-token=goforge
       - --initial-cluster-state=new
     ports:
-      - "2379:2379"
-      - "2380:2380"
+      - "12379:2379"
+      - "12380:2380"
     volumes:
       - etcd-data:/etcd-data
     healthcheck:
@@ -172,7 +171,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://host.docker.internal:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -225,6 +224,8 @@ services:
     <<: *micro
     container_name: goforge-user
     command: ["user"]
+    environment:
+      POD_IP: user-service
     ports:
       - "8000:8000"
 
@@ -232,6 +233,8 @@ services:
     <<: *micro
     container_name: goforge-product
     command: ["product"]
+    environment:
+      POD_IP: product-service
     ports:
       - "8081:8081"
     depends_on:
@@ -243,6 +246,8 @@ services:
     <<: *micro
     container_name: goforge-order
     command: ["order"]
+    environment:
+      POD_IP: order-service
     ports:
       - "8082:8082"
     depends_on:
@@ -264,6 +269,8 @@ services:
     <<: *micro
     container_name: goforge-payment
     command: ["payment"]
+    environment:
+      POD_IP: payment-service
     ports:
       - "8083:8083"
     depends_on:
@@ -275,6 +282,8 @@ services:
     <<: *micro
     container_name: goforge-inventory
     command: ["inventory"]
+    environment:
+      POD_IP: inventory-service
     ports:
       - "8084:8084"
     depends_on:
@@ -286,6 +295,8 @@ services:
     <<: *micro
     container_name: goforge-cart
     command: ["cart"]
+    environment:
+      POD_IP: cart-service
     ports:
       - "8085:8085"
 
@@ -293,6 +304,8 @@ services:
     <<: *micro
     container_name: goforge-promotion
     command: ["promotion"]
+    environment:
+      POD_IP: promotion-service
     ports:
       - "8006:8006"
 
@@ -300,6 +313,8 @@ services:
     <<: *micro
     container_name: goforge-review
     command: ["review"]
+    environment:
+      POD_IP: review-service
     ports:
       - "8007:8007"
     depends_on:
@@ -310,6 +325,8 @@ services:
     <<: *micro
     container_name: goforge-logistics
     command: ["logistics"]
+    environment:
+      POD_IP: logistics-service
     ports:
       - "8008:8008"
 
@@ -343,6 +360,8 @@ services:
     <<: *micro
     container_name: goforge-file
     command: ["file"]
+    environment:
+      POD_IP: file-service
     ports:
       - "8012:8012"
     volumes:
@@ -359,6 +378,8 @@ services:
     <<: *micro
     container_name: goforge-seckill
     command: ["seckill"]
+    environment:
+      POD_IP: seckill-service
     ports:
       - "8090:8090"
     depends_on:
@@ -436,6 +457,8 @@ services:
     <<: *common
     image: nginx:alpine
     container_name: goforge-nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "80:80"
       - "8088:8088"

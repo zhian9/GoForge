@@ -12,6 +12,13 @@ CpuThreshold: 900
 # 健康检查
 Health: true
 
+# etcd 服务注册发现
+# 之前没有这段，搜索服务不注册到注册中心，网关即使配了路由也发现不了它。
+Etcd:
+  Hosts:
+    - etcd:2379
+  Key: search.rpc
+
 # 中间件配置
 Middlewares:
   Trace: true
