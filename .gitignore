@@ -30,6 +30,10 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+
+# K8s Secret 里是明文密码，只提交 example 模板
+deploy/k8s/secret.yaml
+
 *.pem
 *.key
 *.crt
@@ -84,13 +88,13 @@ __pycache__/
 .claude/
 
 # ============================================
-# 面试准备文档（不提交到公开仓库）
+# 本地设计稿与私人文档（不提交）
 # ============================================
 PROJECT_DESIGN.md
-docs/MIDDLEWARE_DESIGN.md
-docs/SECKILL_PAYMENT_DESIGN.md
-docs/RESUME.md
-docs/GATEWAY_DEPLOYMENT.md
+
+# docs 目录下只提交启动文档，其余都留在本地
+docs/*
+!docs/STARTUP.md
 
 # Vite 缓存
 .vite/
