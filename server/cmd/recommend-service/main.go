@@ -1,8 +1,11 @@
 package main
 
 import (
+	"os"
+
 	"flag"
 	"fmt"
+	"github.com/zhian9/GoForge/server/internal/pkg/interceptor"
 
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
@@ -34,6 +37,12 @@ func main() {
 			reflection.Register(grpcServer)
 		}
 	})
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "goforge-jwt-secret"
+	}
+	s.AddUnaryInterceptors(interceptor.AuthInterceptor(jwtSecret))
+
 	defer s.Stop()
 
 	fmt.Printf("推荐服务启动在 %s\n", c.ListenOn)

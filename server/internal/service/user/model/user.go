@@ -20,7 +20,7 @@ type User struct {
 	//会员等级
 	MemberLevel int8 `gorm:"column:member_level;default:0" json:"member_level"`
 	//积分
-	Points    int            `gorm:"column:points;default:0" json:"points"`
+	Points int `gorm:"column:points;default:0" json:"points"`
 	//余额（系统内货币，单位元）
 	Balance   float64        `gorm:"column:balance;type:decimal(10,2);default:0" json:"balance"`
 	IsAdmin   int8           `gorm:"column:is_admin;default:0" json:"is_admin"`

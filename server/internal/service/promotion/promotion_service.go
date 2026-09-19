@@ -3,6 +3,7 @@ package promotion
 import (
 	"context"
 	"encoding/json"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"strconv"
 	"time"
 
@@ -63,8 +64,13 @@ func (s *PromotionService) GetCouponList(ctx context.Context, req *v1.GetCouponL
 
 // ReceiveCoupon 领取优惠券
 func (s *PromotionService) ReceiveCoupon(ctx context.Context, req *v1.ReceiveCouponRequest) (*v1.ReceiveCouponResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	receiveReq := &service.ReceiveCouponRequest{
-		UserID:   uint64(req.UserId),
+		UserID:   userID,
 		CouponID: uint64(req.CouponId),
 	}
 
@@ -81,8 +87,13 @@ func (s *PromotionService) ReceiveCoupon(ctx context.Context, req *v1.ReceiveCou
 
 // GetUserCouponList 获取用户优惠券列表
 func (s *PromotionService) GetUserCouponList(ctx context.Context, req *v1.GetUserCouponListRequest) (*v1.GetUserCouponListResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	getReq := &service.GetUserCouponListRequest{
-		UserID: uint64(req.UserId),
+		UserID: userID,
 		Status: int8(req.Status),
 	}
 
@@ -105,8 +116,13 @@ func (s *PromotionService) GetUserCouponList(ctx context.Context, req *v1.GetUse
 
 // UseCoupon 使用优惠券
 func (s *PromotionService) UseCoupon(ctx context.Context, req *v1.UseCouponRequest) (*v1.UseCouponResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	useReq := &service.UseCouponRequest{
-		UserID:       uint64(req.UserId),
+		UserID:       userID,
 		UserCouponID: uint64(req.UserCouponId),
 		OrderID:      uint64(req.OrderId),
 	}
@@ -148,6 +164,11 @@ func (s *PromotionService) GetPromotionList(ctx context.Context, req *v1.GetProm
 
 // CalculateDiscount 计算优惠金额
 func (s *PromotionService) CalculateDiscount(ctx context.Context, req *v1.CalculateDiscountRequest) (*v1.CalculateDiscountResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	totalAmount, _ := strconv.ParseFloat(req.TotalAmount, 64)
 
 	productIDs := make([]uint64, 0, len(req.ProductIds))
@@ -161,7 +182,7 @@ func (s *PromotionService) CalculateDiscount(ctx context.Context, req *v1.Calcul
 	}
 
 	calcReq := &service.CalculateDiscountRequest{
-		UserID:      uint64(req.UserId),
+		UserID:      userID,
 		ProductIDs:  productIDs,
 		Quantities:  quantities,
 		CouponID:    uint64(req.CouponId),
@@ -183,8 +204,13 @@ func (s *PromotionService) CalculateDiscount(ctx context.Context, req *v1.Calcul
 
 // GetUserPoints 获取用户积分
 func (s *PromotionService) GetUserPoints(ctx context.Context, req *v1.GetUserPointsRequest) (*v1.GetUserPointsResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	getReq := &service.GetUserPointsRequest{
-		UserID: uint64(req.UserId),
+		UserID: userID,
 	}
 
 	resp, err := s.logic.GetUserPoints(ctx, getReq)
@@ -201,8 +227,13 @@ func (s *PromotionService) GetUserPoints(ctx context.Context, req *v1.GetUserPoi
 
 // ExchangePoints 积分兑换
 func (s *PromotionService) ExchangePoints(ctx context.Context, req *v1.ExchangePointsRequest) (*v1.ExchangePointsResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	exchangeReq := &service.ExchangePointsRequest{
-		UserID: uint64(req.UserId),
+		UserID: userID,
 		Points: req.Points,
 	}
 

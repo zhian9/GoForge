@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -18,6 +19,34 @@ import (
 )
 
 var configFile = flag.String("f", "../configs/dev/gateway.yaml", "配置文件路径")
+
+// gatewayRateLimit 返回网关限流的 (qps, burst)。
+//
+// 可用环境变量覆盖：GATEWAY_RATE_QPS / GATEWAY_RATE_BURST。
+// 默认 200 QPS、突发 400 —— 对本地开发和压测足够宽松，
+// 同时能挡住明显的异常流量。返回的 qps <= 0 表示关闭限流。
+func gatewayRateLimit() (int, int) {
+	qps := 200
+	if v := os.Getenv("GATEWAY_RATE_QPS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			qps = n
+		}
+	}
+	if qps <= 0 {
+		return 0, 0
+	}
+
+	burst := qps * 2
+	if v := os.Getenv("GATEWAY_RATE_BURST"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			burst = n
+		}
+	}
+	if burst < 1 {
+		burst = 1
+	}
+	return qps, burst
+}
 
 func main() {
 	flag.Parse()
@@ -179,6 +208,14 @@ func main() {
 	gw := gateway.MustNewServer(internalConfig, func(svr *gateway.Server) {
 		// 添加 CORS 中间件
 		svr.Use(corsMiddleware.Handle)
+
+		// 网关级限流（按客户端 IP 的令牌桶）。
+		// 之前限流器写好了却没有任何调用方，是因为类型与网关的 Use() 不匹配，
+		// 现在通过 GatewayRateLimitMiddleware 适配后真正生效。
+		if qps, burst := gatewayRateLimit(); qps > 0 {
+			svr.Use(middleware.GatewayRateLimitMiddleware(qps, burst))
+			log.Printf("网关限流已启用: qps=%d burst=%d（按客户端 IP）", qps, burst)
+		}
 	}, gateway.WithHeaderProcessor(func(header http.Header) []string {
 		// 转发 Authorization 头到 gRPC metadata，否则 gRPC 服务收不到 token
 		var headers []string

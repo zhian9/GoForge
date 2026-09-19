@@ -2,6 +2,7 @@ package recommend
 
 import (
 	"context"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"strconv"
 
 	v1 "github.com/zhian9/GoForge/server/api/recommend/v1"
@@ -30,8 +31,13 @@ func NewRecommendService(svcCtx *ServiceContext) *RecommendService {
 
 // GetPersonalizedRecommend 获取个性化推荐
 func (s *RecommendService) GetPersonalizedRecommend(ctx context.Context, req *v1.GetPersonalizedRecommendRequest) (*v1.GetPersonalizedRecommendResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	getReq := &service.GetPersonalizedRecommendRequest{
-		UserID: uint64(req.UserId),
+		UserID: userID,
 		Limit:  int(req.Limit),
 	}
 
@@ -123,8 +129,13 @@ func (s *RecommendService) GetHotProducts(ctx context.Context, req *v1.GetHotPro
 
 // GetRealtimeRecommend 获取实时推荐
 func (s *RecommendService) GetRealtimeRecommend(ctx context.Context, req *v1.GetRealtimeRecommendRequest) (*v1.GetRealtimeRecommendResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	getReq := &service.GetRealtimeRecommendRequest{
-		UserID: uint64(req.UserId),
+		UserID: userID,
 		Limit:  int(req.Limit),
 	}
 

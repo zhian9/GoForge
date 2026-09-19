@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"time"
 
 	v1 "github.com/zhian9/GoForge/server/api/review/v1"
@@ -34,8 +35,13 @@ func NewReviewService(svcCtx *ServiceContext) *ReviewService {
 
 // CreateReview 创建评价
 func (s *ReviewService) CreateReview(ctx context.Context, req *v1.CreateReviewRequest) (*v1.CreateReviewResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	createReq := &service.CreateReviewRequest{
-		UserID:      uint64(req.UserId),
+		UserID:      userID,
 		OrderID:     uint64(req.OrderId),
 		OrderItemID: uint64(req.OrderItemId),
 		ProductID:   uint64(req.ProductId),
@@ -105,9 +111,14 @@ func (s *ReviewService) GetReview(ctx context.Context, req *v1.GetReviewRequest)
 
 // ReplyReview 回复评价
 func (s *ReviewService) ReplyReview(ctx context.Context, req *v1.ReplyReviewRequest) (*v1.ReplyReviewResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	replyReq := &service.ReplyReviewRequest{
 		ReviewID: uint64(req.ReviewId),
-		UserID:   uint64(req.UserId),
+		UserID:   userID,
 		Content:  req.Content,
 		ParentID: uint64(req.ParentId),
 	}

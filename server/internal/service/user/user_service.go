@@ -100,13 +100,9 @@ func (s *UserService) Login(ctx context.Context, req *v1.LoginRequest) (*v1.Logi
 func (s *UserService) GetUserInfo(ctx context.Context, req *v1.GetUserInfoRequest) (*v1.GetUserInfoResponse, error) {
 	// 优先从 context 取 user_id（由 gRPC interceptor 从 Authorization 解析得到）
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		// 兼容：如果请求里带了 user_id，就用请求的
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 调用业务逻辑
@@ -130,12 +126,9 @@ func (s *UserService) GetUserInfo(ctx context.Context, req *v1.GetUserInfoReques
 // UpdateUserInfo 更新用户信息
 func (s *UserService) UpdateUserInfo(ctx context.Context, req *v1.UpdateUserInfoRequest) (*v1.UpdateUserInfoResponse, error) {
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 转换请求
@@ -229,12 +222,9 @@ func (s *UserService) DeleteUser(ctx context.Context, req *v1.DeleteUserRequest)
 // GetAddressList 获取地址列表
 func (s *UserService) GetAddressList(ctx context.Context, req *v1.GetAddressListRequest) (*v1.GetAddressListResponse, error) {
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 调用业务逻辑
@@ -263,12 +253,9 @@ func (s *UserService) GetAddressList(ctx context.Context, req *v1.GetAddressList
 // AddAddress 添加地址
 func (s *UserService) AddAddress(ctx context.Context, req *v1.AddAddressRequest) (*v1.AddAddressResponse, error) {
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 转换请求
@@ -301,12 +288,9 @@ func (s *UserService) AddAddress(ctx context.Context, req *v1.AddAddressRequest)
 // UpdateAddress 更新地址
 func (s *UserService) UpdateAddress(ctx context.Context, req *v1.UpdateAddressRequest) (*v1.UpdateAddressResponse, error) {
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 转换请求
@@ -340,12 +324,9 @@ func (s *UserService) UpdateAddress(ctx context.Context, req *v1.UpdateAddressRe
 // DeleteAddress 删除地址
 func (s *UserService) DeleteAddress(ctx context.Context, req *v1.DeleteAddressRequest) (*v1.DeleteAddressResponse, error) {
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	// 转换请求

@@ -461,28 +461,28 @@ func (u *UserLogic) UpdateUserInfo(ctx context.Context, req *UpdateUserInfoReque
 		user.Birthday = &birthday
 		updated = true
 	}
-		if req.Phone != "" && req.Phone != user.Phone {
-			existing, err := u.userRepo.GetByPhone(ctx, req.Phone)
-			if err != nil {
-				return nil, errors.NewInternalError("校验手机号失败: " + err.Error())
-			}
-			if existing != nil && existing.ID != user.ID {
-				return nil, errors.NewError(errors.CodeUserAlreadyExists, "手机号已被其他用户使用")
-			}
-			user.Phone = req.Phone
-			updated = true
+	if req.Phone != "" && req.Phone != user.Phone {
+		existing, err := u.userRepo.GetByPhone(ctx, req.Phone)
+		if err != nil {
+			return nil, errors.NewInternalError("校验手机号失败: " + err.Error())
 		}
-		if req.Email != "" && req.Email != user.Email {
-			existing, err := u.userRepo.GetByEmail(ctx, req.Email)
-			if err != nil {
-				return nil, errors.NewInternalError("校验邮箱失败: " + err.Error())
-			}
-			if existing != nil && existing.ID != user.ID {
-				return nil, errors.NewError(errors.CodeUserAlreadyExists, "邮箱已被其他用户使用")
-			}
-			user.Email = req.Email
-			updated = true
+		if existing != nil && existing.ID != user.ID {
+			return nil, errors.NewError(errors.CodeUserAlreadyExists, "手机号已被其他用户使用")
 		}
+		user.Phone = req.Phone
+		updated = true
+	}
+	if req.Email != "" && req.Email != user.Email {
+		existing, err := u.userRepo.GetByEmail(ctx, req.Email)
+		if err != nil {
+			return nil, errors.NewInternalError("校验邮箱失败: " + err.Error())
+		}
+		if existing != nil && existing.ID != user.ID {
+			return nil, errors.NewError(errors.CodeUserAlreadyExists, "邮箱已被其他用户使用")
+		}
+		user.Email = req.Email
+		updated = true
+	}
 
 	if !updated {
 		return &UpdateUserInfoResponse{User: user}, nil

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	orderpb "github.com/zhian9/GoForge/server/api/order/v1"
+	"github.com/zhian9/GoForge/server/internal/pkg/interceptor"
 	"github.com/zhian9/GoForge/server/internal/service/order"
 )
 
@@ -47,6 +48,17 @@ func main() {
 			reflection.Register(grpcServer)
 		}
 	})
+
+	// 添加认证拦截器：从 metadata 的 Authorization 解析 JWT，把 user_id 注入 ctx。
+	// 这样业务方法就能用「token 里的身份」而不是「请求参数里的 user_id」，
+	// 避免调用方随便填一个 user_id 就查到别人的订单。
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		// 与网关签发 token 使用的密钥保持一致（开发环境默认值）
+		jwtSecret = "goforge-jwt-secret"
+	}
+	s.AddUnaryInterceptors(interceptor.AuthInterceptor(jwtSecret))
+
 	defer s.Stop()
 
 	fmt.Printf("订单服务启动在 %s\n", c.ListenOn)

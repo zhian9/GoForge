@@ -14,11 +14,11 @@ import (
 
 // ServiceContext 服务上下文
 type ServiceContext struct {
-	Config      Config
-	DB          *gorm.DB
-	Redis       *redis.Client
-	CartRepo    repository.CartRepository
-	ProductRpc  productpb.ProductServiceClient
+	Config     Config
+	DB         *gorm.DB
+	Redis      *redis.Client
+	CartRepo   repository.CartRepository
+	ProductRpc productpb.ProductServiceClient
 }
 
 // NewServiceContext 创建服务上下文

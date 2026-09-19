@@ -7,8 +7,8 @@ import (
 	"math"
 	"time"
 
-	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
+	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
 	"github.com/zhian9/GoForge/server/internal/service/payment/channel"
 	"github.com/zhian9/GoForge/server/internal/service/payment/model"
@@ -214,8 +214,8 @@ func (l *PaymentLogic) PaymentCallback(ctx context.Context, req *PaymentCallback
 
 		// 原子更新：仅在待支付状态下更新为成功
 		updates := map[string]interface{}{
-			"status":    model.PaymentStatusSuccess,
-			"paid_at":   now,
+			"status":     model.PaymentStatusSuccess,
+			"paid_at":    now,
 			"updated_at": now,
 		}
 		if req.ThirdPartyNo != "" {
@@ -345,11 +345,11 @@ func (l *PaymentLogic) Refund(ctx context.Context, req *RefundRequest) (*RefundR
 	}
 
 	l.publishEvent(ctx, mq.TopicPaymentRefunded, payment.PaymentNo, map[string]interface{}{
-		"order_id":      payment.OrderID,
-		"order_no":      payment.OrderNo,
-		"payment_no":    payment.PaymentNo,
-		"refund_no":     refundNo,
-		"refund_amount": req.RefundAmount,
+		"order_id":        payment.OrderID,
+		"order_no":        payment.OrderNo,
+		"payment_no":      payment.PaymentNo,
+		"refund_no":       refundNo,
+		"refund_amount":   req.RefundAmount,
 		"third_refund_no": refundResp.ThirdPartyRefundNo,
 	})
 

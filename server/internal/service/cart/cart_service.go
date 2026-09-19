@@ -38,13 +38,9 @@ func NewCartService(svcCtx *ServiceContext) *CartService {
 func (s *CartService) GetCart(ctx context.Context, req *v1.GetCartRequest) (*v1.GetCartResponse, error) {
 	// 从 context 中获取 user_id（由 JWT 中间件设置）
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		// 如果 context 中没有，尝试从请求参数获取（兼容性）
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	getReq := &service.GetCartRequest{
@@ -74,13 +70,9 @@ func (s *CartService) GetCart(ctx context.Context, req *v1.GetCartRequest) (*v1.
 func (s *CartService) AddItem(ctx context.Context, req *v1.AddItemRequest) (*v1.AddItemResponse, error) {
 	// 从 context 中获取 user_id（由 JWT 中间件设置）
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		// 如果 context 中没有，尝试从请求参数获取（兼容性）
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	productName := req.ProductName
@@ -187,12 +179,9 @@ func firstNonEmpty(values ...string) string {
 func (s *CartService) UpdateQuantity(ctx context.Context, req *v1.UpdateQuantityRequest) (*v1.UpdateQuantityResponse, error) {
 	// 从 context 中获取 user_id（由 JWT 中间件设置）
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	updateReq := &service.UpdateQuantityRequest{
@@ -216,12 +205,9 @@ func (s *CartService) UpdateQuantity(ctx context.Context, req *v1.UpdateQuantity
 func (s *CartService) RemoveItem(ctx context.Context, req *v1.RemoveItemRequest) (*v1.RemoveItemResponse, error) {
 	// 从 context 中获取 user_id（由 JWT 中间件设置）
 	userID, ok := utils.GetUserID(ctx)
-	if !ok {
-		if req.UserId > 0 {
-			userID = uint64(req.UserId)
-		} else {
-			return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
-		}
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略（否则不带 token 传别人的 id 就能越权）
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
 	skuIDs := make([]uint64, 0, len(req.SkuIds))
@@ -340,16 +326,16 @@ func convertCartItemToProto(item *model.Cart) *v1.CartItem {
 	}
 
 	return &v1.CartItem{
-		Id:          int64(item.ID),
-		UserId:      int64(item.UserID),
-		SkuId:       int64(item.SkuID),
+		Id:           int64(item.ID),
+		UserId:       int64(item.UserID),
+		SkuId:        int64(item.SkuID),
 		ProductName:  item.ProductName,
 		Price:        formatPrice(item.Price),
 		ProductImage: item.ProductImage,
-		Quantity:    int32(item.Quantity),
-		IsSelected:  int32(item.IsSelected),
-		CreatedAt:   formatTime(&item.CreatedAt),
-		UpdatedAt:   formatTime(&item.UpdatedAt),
+		Quantity:     int32(item.Quantity),
+		IsSelected:   int32(item.IsSelected),
+		CreatedAt:    formatTime(&item.CreatedAt),
+		UpdatedAt:    formatTime(&item.UpdatedAt),
 	}
 }
 

@@ -2,6 +2,7 @@ package payment
 
 import (
 	"context"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"strconv"
 	"time"
 
@@ -39,12 +40,17 @@ func NewPaymentService(svcCtx *ServiceContext) *PaymentService {
 
 // CreatePayment 创建支付单
 func (s *PaymentService) CreatePayment(ctx context.Context, req *v1.CreatePaymentRequest) (*v1.CreatePaymentResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
 	amount, _ := strconv.ParseFloat(req.Amount, 64)
 
 	createReq := &service.CreatePaymentRequest{
 		OrderID:       uint64(req.OrderId),
 		OrderNo:       req.OrderNo,
-		UserID:        uint64(req.UserId),
+		UserID:        userID,
 		Amount:        amount,
 		PaymentMethod: int8(req.PaymentMethod),
 	}

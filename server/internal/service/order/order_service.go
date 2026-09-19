@@ -8,6 +8,7 @@ import (
 
 	"github.com/zhian9/GoForge/server/api/order/v1"
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
+	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/order/model"
 	"github.com/zhian9/GoForge/server/internal/service/order/service"
 	"google.golang.org/grpc/codes"
@@ -16,19 +17,25 @@ import (
 
 // CreateOrder 创建订单
 func (s *OrderService) CreateOrder(ctx context.Context, req *v1.CreateOrderRequest) (*v1.CreateOrderResponse, error) {
+	// 用户身份只认 token 里的（由 AuthInterceptor 注入），不信任请求参数里的 user_id
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+
 	// 转换请求
 	items := make([]service.OrderItemRequest, 0, len(req.Items))
 	for _, item := range req.Items {
 		items = append(items, service.OrderItemRequest{
 			SkuID:       uint64(item.SkuId),
-				Quantity:    int(item.Quantity),
-				ProductName: item.ProductName,
-				Price:       parsePrice(item.Price),
+			Quantity:    int(item.Quantity),
+			ProductName: item.ProductName,
+			Price:       parsePrice(item.Price),
 		})
 	}
 
 	createReq := &service.CreateOrderRequest{
-		UserID:          uint64(req.UserId),
+		UserID:          userID,
 		AddressID:       uint64(req.AddressId),
 		Items:           items,
 		OrderType:       int8(req.OrderType),
@@ -100,9 +107,17 @@ func (s *OrderService) GetOrder(ctx context.Context, req *v1.GetOrderRequest) (*
 
 // ListOrders 获取订单列表
 func (s *OrderService) ListOrders(ctx context.Context, req *v1.ListOrdersRequest) (*v1.ListOrdersResponse, error) {
+	// 关键安全修复：只查「当前登录用户」的订单。
+	// 修复前这里直接用请求参数里的 user_id，导致不登录、随便传一个 user_id
+	// 就能读到他人订单的完整信息（订单号、金额、商品、收货信息）。
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+
 	// 转换请求
 	listReq := &service.ListOrdersRequest{
-		UserID:   uint64(req.UserId),
+		UserID:   userID,
 		Status:   int8(req.Status),
 		Page:     int(req.Page),
 		PageSize: int(req.PageSize),
@@ -195,6 +210,13 @@ func (s *OrderService) ShipOrder(ctx context.Context, req *v1.ShipOrderRequest) 
 
 // GetStats 获取统计数据
 func (s *OrderService) GetStats(ctx context.Context, req *v1.GetStatsRequest) (*v1.GetStatsResponse, error) {
+	// 这是「全站经营数据」（总订单数、总销售额、今日订单），不是某个用户自己的统计，
+	// 属于管理后台接口。修复前它不需要任何身份就能访问 ——
+	// 未登录直接请求 /api/v1/orders/stats 就能拿到全站销售额。
+	if err := s.logic.CheckAdmin(ctx); err != nil {
+		return nil, convertError(err)
+	}
+
 	resp, err := s.logic.GetStats(ctx, &service.GetStatsRequest{})
 	if err != nil {
 		return nil, convertError(err)
@@ -340,9 +362,10 @@ func formatTime(t *time.Time) string {
 }
 
 func parsePrice(s string) float64 {
-	if s == "" { return 0 }
+	if s == "" {
+		return 0
+	}
 	var f float64
 	fmt.Sscanf(s, "%f", &f)
 	return f
 }
-

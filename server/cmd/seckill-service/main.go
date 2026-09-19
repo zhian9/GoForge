@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	seckillpb "github.com/zhian9/GoForge/server/api/seckill/v1"
+	"github.com/zhian9/GoForge/server/internal/pkg/interceptor"
 	"github.com/zhian9/GoForge/server/internal/service/seckill"
 )
 
@@ -53,6 +54,15 @@ func main() {
 			reflection.Register(grpcServer)
 		}
 	})
+
+	// 添加认证拦截器：抢购必须用 token 里的用户身份，
+	// 否则任何人不带 token、随便填一个 user_id 就能替别人抢购。
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "goforge-jwt-secret"
+	}
+	s.AddUnaryInterceptors(interceptor.AuthInterceptor(jwtSecret))
+
 	defer s.Stop()
 
 	fmt.Printf("秒杀服务启动在 %s\\n", c.ListenOn)

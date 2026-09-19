@@ -1,13 +1,13 @@
 package main
 
 import (
-	productpb "github.com/zhian9/GoForge/server/api/product/v1"
-	"github.com/zhian9/GoForge/server/internal/service/product"
 	"flag"
 	"fmt"
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/zrpc"
+	productpb "github.com/zhian9/GoForge/server/api/product/v1"
+	"github.com/zhian9/GoForge/server/internal/service/product"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

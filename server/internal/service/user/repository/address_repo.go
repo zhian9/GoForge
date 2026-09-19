@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"github.com/zhian9/GoForge/server/internal/service/user/model"
 	"errors"
+	"github.com/zhian9/GoForge/server/internal/service/user/model"
 	"gorm.io/gorm"
 )
 

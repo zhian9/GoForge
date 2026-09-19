@@ -8,7 +8,7 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	Database   DatabaseConfig
-	BizRedis   RedisConfig // 业务侧使用的 Redis 配置，避免与 zrpc.RpcServerConf 内置的 Redis 字段冲突
+	BizRedis   RedisConfig        // 业务侧使用的 Redis 配置，避免与 zrpc.RpcServerConf 内置的 Redis 字段冲突
 	ProductRpc zrpc.RpcClientConf // 商品服务 gRPC 客户端配置
 	JWT        JWTConfig
 }
