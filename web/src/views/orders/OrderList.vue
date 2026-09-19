@@ -21,7 +21,7 @@
         <div class="order-head">
           <div class="order-head-left">
             <span class="order-no">订单号 {{ order.orderNo }}</span>
-            <span class="order-time">{{ fmtTime(order.createdAt) }}</span>
+            <span class="order-time">{{ fmtTime(order.createdAt || order.created_at) }}</span>
           </div>
           <span class="status-tag" :class="'s-'+order.status">{{ statusText(order.status) }}</span>
         </div>

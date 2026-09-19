@@ -26,6 +26,8 @@ export interface ProductDTO {
 export interface Product {
   id: number
   name: string
+  /** 销量（ES 搜索结果与商品详情会带） */
+  sales?: number
   subtitle?: string
   description?: string
   price: number

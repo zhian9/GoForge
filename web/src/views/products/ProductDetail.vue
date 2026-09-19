@@ -134,8 +134,8 @@
             <div class="review-dist">
               <div v-for="i in 5" :key="i" class="dist-row">
                 <span>{{ i }}星</span>
-                <div class="dist-bar"><div class="dist-fill" :style="{width:(reviewStats['rating_'+i+'_count']/Math.max(reviewStats.total_count,1)*100)+'%'}"></div></div>
-                <span class="dist-count">{{ reviewStats['rating_'+i+'_count'] }}</span>
+                <div class="dist-bar"><div class="dist-fill" :style="{width:((reviewStats as any)['rating_'+i+'_count']/Math.max(reviewStats.total_count,1)*100)+'%'}"></div></div>
+                <span class="dist-count">{{ (reviewStats as any)['rating_'+i+'_count'] }}</span>
               </div>
             </div>
           </div>
@@ -207,7 +207,6 @@ import { addItem } from '@/api/cart'
 import { createReview, getProductReviews, getReviewStats, type Review, type ReviewStats } from '@/api/review'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
-import { getPublicUrl } from '@/utils/image'
 import type { Product } from '@/api/product'
 import type { Sku } from '@/api/sku'
 

@@ -11,6 +11,13 @@ export interface Order {
   created_at: string
   updated_at: string
   items?: OrderItem[]
+  // 网关用 protobuf 的 json 编码返回 camelCase，这里同时兼容两种命名，
+  // 避免视图里写 order.orderNo 时类型报错（运行时本来就存在）。
+  orderNo?: string
+  userId?: number
+  totalAmount?: number | string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface OrderItem {
@@ -21,6 +28,15 @@ export interface OrderItem {
   sku_id: number
   sku_code?: string
   sku_name?: string
+  // 同上：兼容网关返回的 camelCase
+  orderId?: number
+  productId?: number
+  productName?: string
+  skuId?: number
+  skuCode?: string
+  skuName?: string
+  skuImage?: string
+  totalAmount?: number | string
   sku_image?: string
   sku_specs?: Record<string, string>
   quantity: number

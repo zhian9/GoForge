@@ -154,7 +154,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { updateUserInfo, getAddressList, addAddress, updateAddress, deleteAddress, signIn, recharge } from '@/api/user'
-import type { Address, UpdateAddressRequest } from '@/api/user'
+import type { Address } from '@/api/user'
 
 const userStore = useUserStore()
 

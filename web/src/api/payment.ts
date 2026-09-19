@@ -19,6 +19,16 @@ export interface Payment {
   paid_at: string
   expire_at: string
   created_at: string
+  // 兼容网关返回的 camelCase
+  paymentNo?: string
+  orderId?: number
+  orderNo?: string
+  userId?: number
+  paymentMethod?: number
+  thirdPartyNo?: string
+  paidAt?: string
+  expireAt?: string
+  createdAt?: string
 }
 
 export interface CreatePaymentRequest {

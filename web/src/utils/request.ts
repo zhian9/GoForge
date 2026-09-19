@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/stores/user'
 
 // 创建 axios 实例
@@ -14,7 +14,7 @@ const service: AxiosInstance = axios.create({
 
 // 请求拦截器
 service.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
     // 添加 token
     if (userStore.token) {
@@ -95,5 +95,25 @@ service.interceptors.response.use(
   }
 )
 
-export default service
+/**
+ * 响应拦截器已经把 `res.data` 返回给调用方了，但 axios 的类型仍然把返回值标成
+ * `AxiosResponse<T>` —— 类型与运行时不一致，导致所有调用方写 `res.code` / `res.data`
+ * 时都会报 TS2339（本次修复前全项目累计 75 处）。
+ *
+ * 这里把实例断言成「直接返回业务响应体」的形态，让类型和运行时对上。
+ * 只影响类型，不改任何运行时行为。
+ */
+export interface RequestInstance {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T>
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T>
+  // 保留原生实例上仍会被用到的成员，避免替换类型后其它地方报错
+  interceptors: AxiosInstance['interceptors']
+  defaults: AxiosInstance['defaults']
+  request<T = any>(config: AxiosRequestConfig): Promise<T>
+}
+
+export default service as unknown as RequestInstance
 
