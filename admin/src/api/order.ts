@@ -11,6 +11,22 @@ export interface Order {
   items: OrderItem[]
   created_at: string
   updated_at: string
+  /**
+   * 网关（gRPC-Gateway）返回的是 camelCase，各页面模板里普遍写成
+   * `row.orderNo || row.order_no` 这类兼容取值。这里把 camelCase 也声明出来，
+   * 让类型和实际返回对齐，避免模板里报 TS2551。
+   */
+  orderNo?: string
+  userId?: number
+  totalAmount?: number
+  receiverName?: string
+  receiverPhone?: string
+  receiverAddress?: string
+  receiver_name?: string
+  receiver_phone?: string
+  receiver_address?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface OrderItem {
@@ -55,11 +71,6 @@ export const getOrderDetail = (id: number) => {
 // 取消订单
 export const cancelOrder = (id: number, reason?: string) => {
   return request.put<{ code: number; message: string }>(`/v1/orders/${id}/cancel`, { reason })
-}
-
-// 更新订单状态
-export const updateOrderStatus = (id: number, status: number) => {
-  return request.put<{ code: number; message: string; data: Order }>(`/v1/orders/${id}`, { status })
 }
 
 // 发货

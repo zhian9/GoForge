@@ -583,26 +583,6 @@ func newOrderItemQuantitySum(db *gorm.DB, sku, afterOrderID int64) int64 {
 	return q
 }
 
-func orderCount(db *gorm.DB, sku int64) int64 {
-	var c int64
-	_ = db.Raw(orderCountSQL, sku).Scan(&c).Error
-	return c
-}
-
-func orderItemQuantitySum(db *gorm.DB, sku int64) int64 {
-	var q int64
-	_ = db.Raw(`SELECT COALESCE(SUM(oi.quantity), 0) FROM orders o
-		JOIN order_item oi ON oi.order_id = o.id
-		WHERE oi.sku_id = ? AND o.order_type = 2`, sku).Scan(&q).Error
-	return q
-}
-
-func userOrderCount(db *gorm.DB, sku, userID int64) int64 {
-	var c int64
-	_ = db.Raw(orderCountSQL+` AND o.user_id = ?`, sku, userID).Scan(&c).Error
-	return c
-}
-
 func newUserOrderCount(db *gorm.DB, sku, userID, afterOrderID int64) int64 {
 	var c int64
 	_ = db.Raw(orderCountSQL+` AND o.user_id = ? AND o.id > ?`, sku, userID, afterOrderID).Scan(&c).Error

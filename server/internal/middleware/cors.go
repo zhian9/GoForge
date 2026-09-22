@@ -47,26 +47,3 @@ func (m *CorsMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// CORSMiddleware 兼容旧代码（已废弃，建议使用 NewCorsMiddleware）
-func CORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-		}
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Content-Length")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type")
-		w.Header().Set("Access-Control-Max-Age", "3600")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}

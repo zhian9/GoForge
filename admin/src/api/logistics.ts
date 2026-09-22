@@ -59,13 +59,6 @@ export const listLogistics = (params?: { page?: number; page_size?: number; orde
   })
 }
 
-// 获取物流信息（按订单ID）
-export const getLogistics = (orderId: number) => {
-  return request.get<{ code: number; message: string; data: Logistics }>(`/v1/logistics/${orderId}`).then((res: any) => {
-    return { ...res, data: normalizeLogistics(res.data) }
-  })
-}
-
 // 更新物流状态（按物流单号）
 export const updateLogisticsStatus = (logisticsNo: string, status: number, remark?: string) => {
   return request.put<{ code: number; message: string }>(`/v1/logistics/${logisticsNo}/status`, { status, remark })

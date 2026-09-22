@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	cartpb "github.com/zhian9/GoForge/server/api/cart/v1"
+	"github.com/zhian9/GoForge/server/internal/pkg/interceptor"
 	"github.com/zhian9/GoForge/server/internal/service/cart"
-	"github.com/zhian9/GoForge/server/internal/service/cart/interceptor"
 )
 
 var configFile = flag.String("f", "../configs/dev/cart-config.yaml", "配置文件路径")

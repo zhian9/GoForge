@@ -29,22 +29,6 @@ export interface SkuListResponse {
   }
 }
 
-// 根据商品ID获取SKU列表（用于用户端）
-export const getSkusByProductId = (productId: number) => {
-  return request.get<SkuListResponse>('/v1/skus', {
-    params: {
-      product_id: productId,
-      status: 1, // 只获取上架的SKU
-    },
-  })
-}
-
-export interface SkuDetailResponse {
-  code: number
-  message: string
-  data: Sku
-}
-
 // 获取SKU列表
 export const getSkuList = (params?: {
   product_id?: number
@@ -53,11 +37,6 @@ export const getSkuList = (params?: {
   page_size?: number
 }) => {
   return request.get<SkuListResponse>('/v1/skus', { params })
-}
-
-// 获取SKU详情
-export const getSkuDetail = (id: number) => {
-  return request.get<SkuDetailResponse>(`/v1/skus/${id}`)
 }
 
 // 创建SKU
@@ -80,10 +59,6 @@ export const createSku = (data: CreateSkuRequest) => {
 }
 
 // 更新SKU
-export interface UpdateSkuRequest extends Partial<CreateSkuRequest> {
-  id: number
-}
-
 export const updateSku = (id: number, data: Partial<CreateSkuRequest>) => {
   return request.put<{ code: number; message: string; data: Sku }>(`/v1/skus/${id}`, data)
 }

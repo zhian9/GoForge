@@ -36,39 +36,6 @@ const normalizeReview = (raw: any): Review => {
   }
 }
 
-export interface ReviewStats {
-  total_count: number
-  rating_5_count: number
-  rating_4_count: number
-  rating_3_count: number
-  rating_2_count: number
-  rating_1_count: number
-  average_rating: number
-}
-
-const normalizeStats = (raw: any): ReviewStats => {
-  if (!raw) {
-    return {
-      total_count: 0,
-      rating_5_count: 0,
-      rating_4_count: 0,
-      rating_3_count: 0,
-      rating_2_count: 0,
-      rating_1_count: 0,
-      average_rating: 0,
-    }
-  }
-  return {
-    total_count: Number(raw.total_count ?? raw.totalCount ?? 0),
-    rating_5_count: Number(raw.rating_5_count ?? raw.rating5Count ?? 0),
-    rating_4_count: Number(raw.rating_4_count ?? raw.rating4Count ?? 0),
-    rating_3_count: Number(raw.rating_3_count ?? raw.rating3Count ?? 0),
-    rating_2_count: Number(raw.rating_2_count ?? raw.rating2Count ?? 0),
-    rating_1_count: Number(raw.rating_1_count ?? raw.rating1Count ?? 0),
-    average_rating: Number(raw.average_rating ?? raw.averageRating ?? 0),
-  }
-}
-
 // 获取商品评价列表
 export const getProductReviews = (productId: number, params?: {
   page?: number
@@ -89,34 +56,6 @@ export const getProductReviews = (productId: number, params?: {
     }))
 }
 
-// 获取评价详情
-export const getReview = (id: number) => {
-  return request.get<{ code: number; message: string; data: any }>(`/v1/reviews/${id}`)
-    .then((res) => ({
-      ...res,
-      data: normalizeReview(res.data),
-    }))
-}
-
-// 创建评价
-export const createReview = (data: {
-  user_id: number
-  order_id: number
-  order_item_id: number
-  product_id: number
-  sku_id: number
-  rating: number
-  content: string
-  images?: string[]
-  videos?: string[]
-}) => {
-  return request.post<{ code: number; message: string; data: any }>('/v1/reviews', data)
-    .then((res) => ({
-      ...res,
-      data: normalizeReview(res.data),
-    }))
-}
-
 // 回复评价
 export const replyReview = (id: number, replyContent: string) => {
   // proto: ReplyReviewRequest { review_id, user_id, content, parent_id }
@@ -125,15 +64,6 @@ export const replyReview = (id: number, replyContent: string) => {
     content: replyContent,
     parent_id: 0,
   })
-}
-
-// 获取评价统计
-export const getReviewStats = (productId: number) => {
-  return request.get<{ code: number; message: string; data: any }>(`/v1/reviews/stats/${productId}`)
-    .then((res) => ({
-      ...res,
-      data: normalizeStats(res.data),
-    }))
 }
 
 // 说明：删除/隐藏评价的后端接口目前未定义（proto 无 DeleteReview）

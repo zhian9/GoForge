@@ -28,17 +28,32 @@ export interface BannerDetailResponse {
   data: Banner
 }
 
+/** Banner 归一化：网关返回 camelCase（imageLocal / linkType / startTime），与 Product 同理 */
+const normalizeBanner = (dto: any): Banner => ({
+  id: Number(dto?.id ?? 0),
+  title: dto?.title ?? '',
+  description: dto?.description ?? '',
+  image: dto?.image ?? '',
+  image_local: dto?.imageLocal ?? dto?.image_local ?? '',
+  link: dto?.link ?? '',
+  link_type: Number(dto?.linkType ?? dto?.link_type ?? 4),
+  sort: Number(dto?.sort ?? 0),
+  status: Number(dto?.status ?? 0),
+  start_time: dto?.startTime ?? dto?.start_time ?? '',
+  end_time: dto?.endTime ?? dto?.end_time ?? '',
+  created_at: dto?.createdAt ?? dto?.created_at ?? '',
+  updated_at: dto?.updatedAt ?? dto?.updated_at ?? '',
+})
+
 // 获取Banner列表
 export const getBannerList = (params?: {
   status?: number // -1-全部, 0-禁用, 1-启用
   limit?: number // 限制数量，0表示不限制
 }) => {
-  return request.get<BannerListResponse>('/v1/banners', { params })
-}
-
-// 获取Banner详情
-export const getBannerDetail = (id: number) => {
-  return request.get<BannerDetailResponse>(`/v1/banners/${id}`)
+  return request.get<BannerListResponse>('/v1/banners', { params }).then((res) => ({
+    ...res,
+    data: Array.isArray(res.data) ? res.data.map(normalizeBanner) : [],
+  }))
 }
 
 // 创建Banner
@@ -60,10 +75,6 @@ export const createBanner = (data: CreateBannerRequest) => {
 }
 
 // 更新Banner
-export interface UpdateBannerRequest extends Partial<CreateBannerRequest> {
-  id: number
-}
-
 export const updateBanner = (id: number, data: Partial<CreateBannerRequest>) => {
   return request.put<BannerDetailResponse>(`/v1/banners/${id}`, data)
 }

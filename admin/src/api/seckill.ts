@@ -82,21 +82,6 @@ export const getSeckillActivityList = (params?: {
   })
 }
 
-export interface SeckillActivityDetailResponse {
-  code: number
-  message: string
-  data: SeckillActivity
-}
-
-export const getSeckillActivityDetail = (id: number) => {
-  return request.get<SeckillActivityDetailResponse>(`/v1/seckill/activities/${id}`).then((res) => {
-    return {
-      ...res,
-      data: normalizeActivity(res.data) as any,
-    }
-  })
-}
-
 export interface CreateSeckillActivityRequest {
   name: string
   sku_id: number
@@ -114,10 +99,6 @@ export const createSeckillActivity = (data: CreateSeckillActivityRequest) => {
       data: normalizeActivity(res.data) as any,
     }
   })
-}
-
-export interface UpdateSeckillActivityRequest extends CreateSeckillActivityRequest {
-  id: number
 }
 
 export const updateSeckillActivity = (id: number, data: CreateSeckillActivityRequest) => {

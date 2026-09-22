@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	userpb "github.com/zhian9/GoForge/server/api/user/v1"
+	"github.com/zhian9/GoForge/server/internal/pkg/interceptor"
 	"github.com/zhian9/GoForge/server/internal/service/user"
-	"github.com/zhian9/GoForge/server/internal/service/user/interceptor"
 )
 
 var configFile = flag.String("f", "../configs/dev/user-config.yaml", "配置文件路径")

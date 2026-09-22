@@ -27,6 +27,7 @@ export interface UserInfo {
   member_level: number
   points: number
   is_admin: number
+  balance?: number
   created_at: string
   updated_at: string
 }
@@ -66,7 +67,10 @@ export const register = (data: RegisterRequest) => {
 
 // 获取用户信息
 export const getUserInfo = () => {
-  return request.get<{ code: number; message: string; data: UserInfo }>('/v1/user/info')
+  return request.get<{ code: number; message: string; data: UserInfo }>('/v1/user/info').then((res) => ({
+    ...res,
+    data: normalizeUserInfo(res.data),
+  }))
 }
 
 // 更新用户信息
@@ -90,11 +94,42 @@ export interface ListUsersResponse {
     total: number
     page: number
     page_size: number
+    /** 网关实际返回的是 list，两个字段名都保留，调用方按哪种写都能取到 */
+    list?: UserInfo[]
   }
 }
 
+/**
+ * 用户信息归一化。
+ *
+ * 后端经 gRPC-Gateway 返回 camelCase（memberLevel / createdAt / updatedAt / isAdmin），
+ * 而 UserInfo 声明的是 snake_case：用户管理页的「注册时间」列因此一直是空白，
+ * 会员等级也读不到。这里在 API 边界统一成声明形状，两种命名都兼容。
+ */
+const normalizeUserInfo = (dto: any): UserInfo => ({
+  id: Number(dto?.id ?? 0),
+  username: dto?.username ?? '',
+  nickname: dto?.nickname ?? '',
+  phone: dto?.phone ?? '',
+  email: dto?.email ?? '',
+  avatar: dto?.avatar ?? '',
+  gender: Number(dto?.gender ?? 0),
+  birthday: dto?.birthday || undefined,
+  status: Number(dto?.status ?? 0),
+  member_level: Number(dto?.memberLevel ?? dto?.member_level ?? 0),
+  points: Number(dto?.points ?? 0),
+  is_admin: Number(dto?.isAdmin ?? dto?.is_admin ?? 0),
+  balance: dto?.balance === undefined || dto?.balance === null ? undefined : Number(dto.balance),
+  created_at: dto?.createdAt ?? dto?.created_at ?? '',
+  updated_at: dto?.updatedAt ?? dto?.updated_at ?? '',
+})
+
 export const getUserList = (params: ListUsersParams) => {
-  return request.get<ListUsersResponse>('/v1/users', { params })
+  return request.get<ListUsersResponse>('/v1/users', { params }).then((res) => {
+    const raw: any[] = (res?.data?.users || (res?.data as any)?.list || []) as any[]
+    const users = raw.map(normalizeUserInfo)
+    return { ...res, data: { ...res.data, users, list: users } }
+  })
 }
 
 // 删除用户（管理后台）

@@ -32,24 +32,6 @@ export interface Category {
   children: Category[]
 }
 
-export interface CategoryListResponse {
-  code: number
-  message: string
-  data: Category[]
-}
-
-export interface CategoryTreeResponse {
-  code: number
-  message: string
-  data: Category[]
-}
-
-export interface CategoryDetailResponse {
-  code: number
-  message: string
-  data: Category
-}
-
 const normalizeCategory = (dto: CategoryDTO): Category => {
   return {
     id: Number(dto.id),
@@ -67,34 +49,12 @@ const normalizeCategory = (dto: CategoryDTO): Category => {
   }
 }
 
-// 获取分类列表
-export const getCategoryList = (params?: {
-  parent_id?: number
-  level?: number
-  status?: number
-}) => {
-  return request.get<{ code: number; message: string; data: CategoryDTO[] }>('/v1/categories', { params }).then((res) => ({
-    code: res.code,
-    message: res.message,
-    data: (res.data || []).map(normalizeCategory),
-  }))
-}
-
 // 获取分类树
 export const getCategoryTree = (params?: { status?: number }) => {
   return request.get<{ code: number; message: string; data: CategoryDTO[] }>('/v1/categories/tree', { params }).then((res) => ({
     code: res.code,
     message: res.message,
     data: (res.data || []).map(normalizeCategory),
-  }))
-}
-
-// 获取分类详情
-export const getCategoryDetail = (id: number) => {
-  return request.get<{ code: number; message: string; data: CategoryDTO }>(`/v1/categories/${id}`).then((res) => ({
-    code: res.code,
-    message: res.message,
-    data: normalizeCategory(res.data),
   }))
 }
 
