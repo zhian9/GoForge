@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
+
+	"gorm.io/gorm"
 
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/service/message/model"
@@ -129,4 +133,88 @@ func (l *MessageLogic) GetUnreadCount(ctx context.Context, req *GetUnreadCountRe
 	return &GetUnreadCountResponse{
 		Count: count,
 	}, nil
+}
+
+// DeleteMessageRequest 删除消息请求
+type DeleteMessageRequest struct {
+	UserID    uint64
+	MessageID uint64
+}
+
+// DeleteMessage 删除消息
+func (l *MessageLogic) DeleteMessage(ctx context.Context, req *DeleteMessageRequest) error {
+	if req.MessageID == 0 {
+		return apperrors.NewInvalidParamError("消息ID不能为空")
+	}
+	if err := l.messageRepo.Delete(ctx, req.UserID, req.MessageID); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperrors.NewNotFoundError("消息不存在")
+		}
+		return apperrors.NewInternalError("删除消息失败: " + err.Error())
+	}
+	return nil
+}
+
+// BroadcastMessageRequest 群发公告请求
+type BroadcastMessageRequest struct {
+	Type    int8
+	Title   string
+	Content string
+	Link    string
+	UserIDs []uint64 // 为空表示全体启用用户
+}
+
+// BroadcastMessageResponse 群发公告响应
+type BroadcastMessageResponse struct {
+	SentCount int64
+}
+
+// BroadcastMessage 群发公告：把同一条消息写入多个用户的消息箱
+func (l *MessageLogic) BroadcastMessage(ctx context.Context, req *BroadcastMessageRequest) (*BroadcastMessageResponse, error) {
+	if strings.TrimSpace(req.Title) == "" {
+		return nil, apperrors.NewInvalidParamError("公告标题不能为空")
+	}
+	if strings.TrimSpace(req.Content) == "" {
+		return nil, apperrors.NewInvalidParamError("公告内容不能为空")
+	}
+
+	// 未指定收件人时发给所有启用用户
+	userIDs := req.UserIDs
+	if len(userIDs) == 0 {
+		var err error
+		userIDs, err = l.messageRepo.ListActiveUserIDs(ctx)
+		if err != nil {
+			return nil, apperrors.NewInternalError("查询接收用户失败: " + err.Error())
+		}
+	}
+	if len(userIDs) == 0 {
+		return nil, apperrors.NewInvalidParamError("没有可发送的用户")
+	}
+
+	now := time.Now()
+	link := req.Link
+	messages := make([]*model.Message, 0, len(userIDs))
+	for _, userID := range userIDs {
+		if userID == 0 {
+			continue
+		}
+		message := &model.Message{
+			UserID:    userID,
+			Type:      req.Type,
+			Title:     req.Title,
+			Content:   req.Content,
+			IsRead:    0,
+			CreatedAt: now,
+		}
+		if link != "" {
+			message.Link = &link
+		}
+		messages = append(messages, message)
+	}
+
+	if err := l.messageRepo.CreateBatch(ctx, messages); err != nil {
+		return nil, apperrors.NewInternalError("群发公告失败: " + err.Error())
+	}
+
+	return &BroadcastMessageResponse{SentCount: int64(len(messages))}, nil
 }

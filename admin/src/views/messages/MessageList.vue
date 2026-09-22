@@ -4,7 +4,10 @@
       <template #header>
         <div class="card-header">
           <span>消息管理</span>
-          <el-button type="primary" @click="handleAdd">发送消息</el-button>
+          <div>
+            <el-button type="warning" @click="handleBroadcast">群发公告</el-button>
+            <el-button type="primary" @click="handleAdd">发送消息</el-button>
+          </div>
         </div>
       </template>
       
@@ -120,6 +123,53 @@
         <el-button @click="createDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleCreateSubmit" :loading="submitting">发送</el-button>
       </template>
+</el-dialog>
+
+    <!-- 群发公告对话框 -->
+    <el-dialog
+      v-model="broadcastDialogVisible"
+      title="群发公告"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        title="收件人留空 = 发给所有启用用户；填写用户ID（逗号分隔）则只发给这些人"
+        style="margin-bottom: 12px"
+      />
+      <el-form
+        ref="broadcastFormRef"
+        :model="broadcastFormData"
+        :rules="broadcastFormRules"
+        label-width="100px"
+      >
+        <el-form-item label="消息类型" prop="type">
+          <el-select v-model="broadcastFormData.type" style="width: 100%">
+            <el-option label="系统通知" :value="1" />
+            <el-option label="订单消息" :value="2" />
+            <el-option label="营销消息" :value="3" />
+            <el-option label="物流消息" :value="4" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标题" prop="title">
+          <el-input v-model="broadcastFormData.title" placeholder="例如：双十一大促开始啦" />
+        </el-form-item>
+        <el-form-item label="内容" prop="content">
+          <el-input v-model="broadcastFormData.content" type="textarea" :rows="4" placeholder="公告正文" />
+        </el-form-item>
+        <el-form-item label="跳转链接" prop="link">
+          <el-input v-model="broadcastFormData.link" placeholder="选填，例如 /coupons" />
+        </el-form-item>
+        <el-form-item label="收件人" prop="user_ids_text">
+          <el-input v-model="broadcastFormData.user_ids_text" placeholder="留空=全体启用用户；也可填 1,4" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="broadcastDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="broadcasting" @click="handleBroadcastSubmit">发送</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -131,15 +181,14 @@ import type { FormInstance, FormRules } from 'element-plus'
 import {
   getMessageList,
   sendMessage,
+  broadcastMessage,
   markAsRead,
-  batchMarkAsRead,
   deleteMessage,
   type Message,
 } from '@/api/message'
 
 const loading = ref(false)
 const messageList = ref<Message[]>([])
-const selectedMessages = ref<Message[]>([])
 const searchUserId = ref('')
 const searchType = ref<number | null>(null)
 const searchIsRead = ref<number | null>(null)
@@ -163,11 +212,64 @@ const createFormRules: FormRules = {
   content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
 }
 
+// ===== 群发公告 =====
+const broadcastDialogVisible = ref(false)
+const broadcasting = ref(false)
+const broadcastFormRef = ref<FormInstance>()
+const broadcastFormData = ref({
+  type: 1,
+  title: '',
+  content: '',
+  link: '',
+  user_ids_text: '',
+})
+const broadcastFormRules: FormRules = {
+  type: [{ required: true, message: '请选择消息类型', trigger: 'change' }],
+  title: [{ required: true, message: '请输入公告标题', trigger: 'blur' }],
+  content: [{ required: true, message: '请输入公告内容', trigger: 'blur' }],
+}
+
+const handleBroadcast = () => {
+  broadcastFormData.value = { type: 1, title: '', content: '', link: '', user_ids_text: '' }
+  broadcastDialogVisible.value = true
+}
+
+const handleBroadcastSubmit = async () => {
+  if (!broadcastFormRef.value) return
+  await broadcastFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    // 收件人留空 = 全体启用用户；填了就解析成 ID 数组
+    const ids = broadcastFormData.value.user_ids_text
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0)
+
+    broadcasting.value = true
+    try {
+      const res: any = await broadcastMessage({
+        type: broadcastFormData.value.type,
+        title: broadcastFormData.value.title,
+        content: broadcastFormData.value.content,
+        link: broadcastFormData.value.link,
+        user_ids: ids,
+      })
+      ElMessage.success(`群发成功，共发送 ${res?.sent_count ?? 0} 条`)
+      broadcastDialogVisible.value = false
+    } catch (error: any) {
+      ElMessage.error(error.message || '群发失败')
+    } finally {
+      broadcasting.value = false
+    }
+  })
+}
+
 const getTypeText = (type: number) => {
   const typeMap: Record<number, string> = {
     1: '系统消息',
     2: '订单消息',
     3: '营销消息',
+    4: '物流消息',
   }
   return typeMap[type] || '未知'
 }
@@ -187,6 +289,7 @@ const fetchMessageList = async () => {
     }
     
     const params: any = {
+      user_id: userId, // 管理员指定查看该用户的消息
       page: 1,
       page_size: 100,
     }
@@ -197,9 +300,9 @@ const fetchMessageList = async () => {
       params.is_read = searchIsRead.value
     }
     
-    const response = await getMessageList(userId, params)
+    const response = await getMessageList(params)
     if (response.code === 0) {
-      messageList.value = response.data.messages || []
+      messageList.value = response.data || []
     } else {
       ElMessage.error(response.message || '获取消息列表失败')
     }

@@ -32,13 +32,20 @@ func NewMessageService(svcCtx *ServiceContext) *MessageService {
 
 // SendMessage 发送消息
 func (s *MessageService) SendMessage(ctx context.Context, req *v1.SendMessageRequest) (*v1.SendMessageResponse, error) {
-	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	// 只认 token 里的身份
 	userID, ok := utils.GetUserID(ctx)
 	if !ok || userID == 0 {
 		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
+	// 收件人：
+	//   - 普通用户只能发给自己（user_id 参数被忽略，避免被当成"随便给谁发消息"的入口）
+	//   - 管理员可以通过 user_id 指定收件人（后台「发送消息」功能需要）
+	targetUserID := userID
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin == 1 && req.UserId > 0 {
+		targetUserID = uint64(req.UserId)
+	}
 	sendReq := &service.SendMessageRequest{
-		UserID:  userID,
+		UserID:  targetUserID,
 		Type:    int8(req.Type),
 		Title:   req.Title,
 		Content: req.Content,
@@ -62,6 +69,10 @@ func (s *MessageService) GetMessageList(ctx context.Context, req *v1.GetMessageL
 	userID, ok := utils.GetUserID(ctx)
 	if !ok || userID == 0 {
 		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+	// 管理员可以指定查看某个用户的消息（后台消息管理页需要）
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin == 1 && req.UserId > 0 {
+		userID = uint64(req.UserId)
 	}
 	getReq := &service.GetMessageListRequest{
 		UserID:   userID,
@@ -96,6 +107,10 @@ func (s *MessageService) MarkAsRead(ctx context.Context, req *v1.MarkAsReadReque
 	userID, ok := utils.GetUserID(ctx)
 	if !ok || userID == 0 {
 		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+	// 管理员可以代用户标记（后台消息管理页需要）
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin == 1 && req.UserId > 0 {
+		userID = uint64(req.UserId)
 	}
 	markReq := &service.MarkAsReadRequest{
 		UserID:    userID,
@@ -201,4 +216,65 @@ func formatTime(t *time.Time) string {
 		return ""
 	}
 	return t.Format(time.RFC3339)
+}
+
+// DeleteMessage 删除消息
+func (s *MessageService) DeleteMessage(ctx context.Context, req *v1.DeleteMessageRequest) (*v1.DeleteMessageResponse, error) {
+	// 只认 token 里的身份；请求参数里的 user_id 一律忽略
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+	// 管理员可以删除指定用户的消息（后台消息管理页需要）
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin == 1 && req.UserId > 0 {
+		userID = uint64(req.UserId)
+	}
+
+	deleteReq := &service.DeleteMessageRequest{
+		UserID:    userID,
+		MessageID: uint64(req.MessageId),
+	}
+	if err := s.logic.DeleteMessage(ctx, deleteReq); err != nil {
+		return nil, convertError(err)
+	}
+
+	return &v1.DeleteMessageResponse{
+		Code:    0,
+		Message: "删除成功",
+	}, nil
+}
+
+// BroadcastMessage 群发公告（仅管理员）
+func (s *MessageService) BroadcastMessage(ctx context.Context, req *v1.BroadcastMessageRequest) (*v1.BroadcastMessageResponse, error) {
+	userID, ok := utils.GetUserID(ctx)
+	if !ok || userID == 0 {
+		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
+	}
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin != 1 {
+		return nil, status.Error(codes.PermissionDenied, "只有管理员可以群发公告")
+	}
+
+	userIDs := make([]uint64, 0, len(req.UserIds))
+	for _, id := range req.UserIds {
+		if id > 0 {
+			userIDs = append(userIDs, uint64(id))
+		}
+	}
+
+	resp, err := s.logic.BroadcastMessage(ctx, &service.BroadcastMessageRequest{
+		Type:    int8(req.Type),
+		Title:   req.Title,
+		Content: req.Content,
+		Link:    req.Link,
+		UserIDs: userIDs,
+	})
+	if err != nil {
+		return nil, convertError(err)
+	}
+
+	return &v1.BroadcastMessageResponse{
+		Code:      0,
+		Message:   "群发成功",
+		SentCount: int32(resp.SentCount),
+	}, nil
 }

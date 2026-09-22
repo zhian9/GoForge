@@ -16,6 +16,10 @@ service MessageService {
     rpc BatchMarkAsRead (BatchMarkAsReadRequest) returns (BatchMarkAsReadResponse);
     // 获取未读消息数量
     rpc GetUnreadCount (GetUnreadCountRequest) returns (GetUnreadCountResponse);
+    // 删除消息
+    rpc DeleteMessage (DeleteMessageRequest) returns (DeleteMessageResponse);
+    // 群发公告（仅管理员）
+    rpc BroadcastMessage (BroadcastMessageRequest) returns (BroadcastMessageResponse);
 }
 
 // 消息信息
@@ -95,4 +99,32 @@ message GetUnreadCountResponse {
     int32 code = 1;
     string message = 2;
     int32 count = 3;
+}
+
+// 删除消息请求
+message DeleteMessageRequest {
+    int64 user_id = 1;
+    int64 message_id = 2;
+}
+
+// 删除消息响应
+message DeleteMessageResponse {
+    int32 code = 1;
+    string message = 2;
+}
+
+// 群发公告请求
+message BroadcastMessageRequest {
+    int32 type = 1; // 1-系统通知 2-订单消息 3-营销消息 4-物流消息
+    string title = 2;
+    string content = 3;
+    string link = 4;
+    repeated int64 user_ids = 5; // 为空表示发给所有启用用户
+}
+
+// 群发公告响应
+message BroadcastMessageResponse {
+    int32 code = 1;
+    string message = 2;
+    int32 sent_count = 3; // 实际写入的消息条数
 }

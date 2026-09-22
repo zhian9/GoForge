@@ -11,14 +11,15 @@ export interface Message {
   created_at: string
 }
 
-// 获取消息列表
-export const getMessageList = (userId: number, params?: {
+// 获取消息列表：user_id 由后端按 token 解析；管理员可以额外指定 user_id 查看某个用户的消息
+export const getMessageList = (params?: {
+  user_id?: number
   page?: number
   page_size?: number
   type?: number
   is_read?: number
 }) => {
-  return request.get<{ code: number; message: string; data: { messages: Message[]; total: number } }>(`/v1/messages/${userId}`, { params })
+  return request.get<{ code: number; message: string; data: Message[]; total: number }>('/v1/messages', { params })
 }
 
 // 发送消息
@@ -37,18 +38,19 @@ export const markAsRead = (id: number) => {
   return request.put<{ code: number; message: string }>(`/v1/messages/${id}/read`)
 }
 
-// 批量标记已读
-export const batchMarkAsRead = (ids: number[]) => {
-  return request.put<{ code: number; message: string }>('/v1/messages/batch-read', { ids })
-}
-
-// 获取未读消息数量
-export const getUnreadCount = (userId: number) => {
-  return request.get<{ code: number; message: string; data: { count: number } }>(`/v1/messages/${userId}/unread-count`)
-}
-
 // 删除消息
 export const deleteMessage = (id: number) => {
   return request.delete<{ code: number; message: string }>(`/v1/messages/${id}`)
+}
+
+// 群发公告（仅管理员）：user_ids 为空表示发给所有启用用户
+export const broadcastMessage = (data: {
+  type: number
+  title: string
+  content: string
+  link?: string
+  user_ids?: number[]
+}) => {
+  return request.post<{ code: number; message: string; sent_count: number }>('/v1/messages/broadcast', data)
 }
 

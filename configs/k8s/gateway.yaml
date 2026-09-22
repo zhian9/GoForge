@@ -3,8 +3,9 @@ Host: 0.0.0.0
 Port: 8080
 Mode: dev
 
-# 超时配置（毫秒）- 文件上传需要更长时间
-Timeout: 60000
+# 超时配置（毫秒）。该值同时决定 http.Server 的读写超时（ReadTimeout = 0.8×Timeout），
+# 上传大文件需要留足余量，取 120s。
+Timeout: 120000
 
 # JWT 认证配置
 Auth:
@@ -547,6 +548,70 @@ Upstreams:
       - Method: get
         Path: /api/v1/promotion/promotions
         RpcPath: promotion.v1.PromotionService/GetPromotionList
+      # 领券与试算：用户侧「领券中心」「下单页选券」要用
+      - Method: options
+        Path: /api/v1/promotion/coupons/:coupon_id/receive
+        RpcPath: promotion.v1.PromotionService/ReceiveCoupon
+      - Method: post
+        Path: /api/v1/promotion/coupons/:coupon_id/receive
+        RpcPath: promotion.v1.PromotionService/ReceiveCoupon
+      - Method: options
+        Path: /api/v1/promotion/coupons/calculate
+        RpcPath: promotion.v1.PromotionService/CalculateDiscount
+      - Method: post
+        Path: /api/v1/promotion/coupons/calculate
+        RpcPath: promotion.v1.PromotionService/CalculateDiscount
+
+  # 消息服务（站内信）
+  # 注意：message-service 之前既没注册到 etcd、网关也没有它的 upstream，
+  # 所以 /api/v1/messages* 全部 404；这里补齐路由（用户身份由 token 解析）
+  - Name: message-service
+    Grpc:
+      Etcd:
+        Hosts:
+          - 172.18.0.1:12389
+        Key: message.rpc
+      Timeout: 3000
+    Mappings:
+      - Method: options
+        Path: /api/v1/messages
+        RpcPath: message.v1.MessageService/GetMessageList
+      - Method: get
+        Path: /api/v1/messages
+        RpcPath: message.v1.MessageService/GetMessageList
+      - Method: post
+        Path: /api/v1/messages
+        RpcPath: message.v1.MessageService/SendMessage
+      - Method: options
+        Path: /api/v1/messages/broadcast
+        RpcPath: message.v1.MessageService/BroadcastMessage
+      - Method: post
+        Path: /api/v1/messages/broadcast
+        RpcPath: message.v1.MessageService/BroadcastMessage
+      - Method: options
+        Path: /api/v1/messages/unread-count
+        RpcPath: message.v1.MessageService/GetUnreadCount
+      - Method: get
+        Path: /api/v1/messages/unread-count
+        RpcPath: message.v1.MessageService/GetUnreadCount
+      - Method: options
+        Path: /api/v1/messages/batch-read
+        RpcPath: message.v1.MessageService/BatchMarkAsRead
+      - Method: put
+        Path: /api/v1/messages/batch-read
+        RpcPath: message.v1.MessageService/BatchMarkAsRead
+      - Method: options
+        Path: /api/v1/messages/:message_id/read
+        RpcPath: message.v1.MessageService/MarkAsRead
+      - Method: put
+        Path: /api/v1/messages/:message_id/read
+        RpcPath: message.v1.MessageService/MarkAsRead
+      - Method: options
+        Path: /api/v1/messages/:message_id
+        RpcPath: message.v1.MessageService/DeleteMessage
+      - Method: delete
+        Path: /api/v1/messages/:message_id
+        RpcPath: message.v1.MessageService/DeleteMessage
 
   # 文件服务
   # 注意：文件上传路由（/api/v1/files/upload 和 /api/v1/files/batch-upload）

@@ -1,0 +1,64 @@
+# ============================================
+# GoForge - 本地开发覆盖（dev 模式）
+#
+# 用法（deploy/compose 目录下）：
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   make dev-up          # 等价写法
+#
+# 本文件是 docker-compose.yml 的开发覆盖：把「配置 / 后端二进制 / 前端产物」
+# 改为挂载宿主机目录，改完重启对应服务即可生效，无需重建镜像：
+#   1) 改配置     → 改 configs/docker/*.yaml                        → docker compose restart <svc>
+#   2) 改 Go 代码 → make dev-build（交叉编译到 server/dev-bin）      → docker compose restart <svc>
+#   3) 改前端     → 在 web/ 或 admin/ 下 npm run build               → 浏览器刷新
+#
+# 交付/部署仍使用 docker-compose.yml（配置与二进制打进镜像）。
+# ============================================
+
+x-dev-volumes: &dev-volumes
+  - ../../configs/docker:/app/configs:ro
+  - ../../server/dev-bin:/app/bin:ro
+  # Swagger 文档也走宿主机目录：make swagger 生成后重启网关即可生效
+  - ../../server/docs:/app/docs:ro
+
+services:
+  user-service:
+    volumes: *dev-volumes
+  product-service:
+    volumes: *dev-volumes
+  order-service:
+    volumes: *dev-volumes
+  order-service-consumer:
+    volumes: *dev-volumes
+  payment-service:
+    volumes: *dev-volumes
+  inventory-service:
+    volumes: *dev-volumes
+  cart-service:
+    volumes: *dev-volumes
+  promotion-service:
+    volumes: *dev-volumes
+  review-service:
+    volumes: *dev-volumes
+  logistics-service:
+    volumes: *dev-volumes
+  message-service:
+    volumes: *dev-volumes
+  search-service:
+    volumes: *dev-volumes
+  recommend-service:
+    volumes: *dev-volumes
+  file-service:
+    volumes: *dev-volumes
+  job-service:
+    volumes: *dev-volumes
+  seckill-service:
+    volumes: *dev-volumes
+  api-gateway:
+    volumes: *dev-volumes
+
+  # 前端直接挂宿主机构建产物，改代码后 npm run build 即可，无需重建镜像
+  nginx:
+    volumes:
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../web/dist:/app/web/dist:ro
+      - ../../admin/dist:/app/admin/dist:ro
