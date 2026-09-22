@@ -1,0 +1,704 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: product-service）",
+    "title": "product service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "product"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/banners": {
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/ListBanners",
+        "operationId": "product.v1.ProductService_ListBanners",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ListBanners",
+        "tags": [
+          "product"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/CreateBanner",
+        "operationId": "product.v1.ProductService_CreateBanner",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/CreateBanner 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateBanner",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/banners/{id}": {
+      "delete": {
+        "description": "gRPC 方法: product.v1.ProductService/DeleteBanner",
+        "operationId": "product.v1.ProductService_DeleteBanner",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "DeleteBanner",
+        "tags": [
+          "product"
+        ]
+      },
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetBanner",
+        "operationId": "product.v1.ProductService_GetBanner",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetBanner",
+        "tags": [
+          "product"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/UpdateBanner",
+        "operationId": "product.v1.ProductService_UpdateBanner",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/UpdateBanner 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "UpdateBanner",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetCategoryList",
+        "operationId": "product.v1.ProductService_GetCategoryList",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetCategoryList",
+        "tags": [
+          "product"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/CreateCategory",
+        "operationId": "product.v1.ProductService_CreateCategory",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/CreateCategory 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateCategory",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/categories/tree": {
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetCategoryTree",
+        "operationId": "product.v1.ProductService_GetCategoryTree",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetCategoryTree",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "delete": {
+        "description": "gRPC 方法: product.v1.ProductService/DeleteCategory",
+        "operationId": "product.v1.ProductService_DeleteCategory",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "DeleteCategory",
+        "tags": [
+          "product"
+        ]
+      },
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetCategory",
+        "operationId": "product.v1.ProductService_GetCategory",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetCategory",
+        "tags": [
+          "product"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/UpdateCategory",
+        "operationId": "product.v1.ProductService_UpdateCategory",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/UpdateCategory 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "UpdateCategory",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/ListProducts",
+        "operationId": "product.v1.ProductService_ListProducts",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ListProducts",
+        "tags": [
+          "product"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/CreateProduct",
+        "operationId": "product.v1.ProductService_CreateProduct",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/CreateProduct 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateProduct",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/products/{id}": {
+      "delete": {
+        "description": "gRPC 方法: product.v1.ProductService/DeleteProduct",
+        "operationId": "product.v1.ProductService_DeleteProduct",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "DeleteProduct",
+        "tags": [
+          "product"
+        ]
+      },
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetProduct",
+        "operationId": "product.v1.ProductService_GetProduct",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetProduct",
+        "tags": [
+          "product"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/UpdateProduct",
+        "operationId": "product.v1.ProductService_UpdateProduct",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/UpdateProduct 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "UpdateProduct",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/skus": {
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/ListSkus",
+        "operationId": "product.v1.ProductService_ListSkus",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ListSkus",
+        "tags": [
+          "product"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/CreateSku",
+        "operationId": "product.v1.ProductService_CreateSku",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/CreateSku 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateSku",
+        "tags": [
+          "product"
+        ]
+      }
+    },
+    "/api/v1/skus/{id}": {
+      "delete": {
+        "description": "gRPC 方法: product.v1.ProductService/DeleteSku",
+        "operationId": "product.v1.ProductService_DeleteSku",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "DeleteSku",
+        "tags": [
+          "product"
+        ]
+      },
+      "get": {
+        "description": "gRPC 方法: product.v1.ProductService/GetSku",
+        "operationId": "product.v1.ProductService_GetSku",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetSku",
+        "tags": [
+          "product"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: product.v1.ProductService/UpdateSku",
+        "operationId": "product.v1.ProductService_UpdateSku",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 product.v1.ProductService/UpdateSku 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "UpdateSku",
+        "tags": [
+          "product"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

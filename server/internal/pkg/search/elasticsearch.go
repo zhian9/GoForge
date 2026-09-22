@@ -12,9 +12,9 @@ import (
 
 // Config Elasticsearch配置
 type Config struct {
-	Addresses []string `json:"required"`
-	Username  string   `json:"optional"`
-	Password  string   `json:"optional"`
+	Addresses []string `json:",required"`
+	Username  string   `json:",optional"`
+	Password  string   `json:",optional"`
 }
 
 // Client ES客户端
@@ -195,11 +195,11 @@ func (c *Client) BulkIndex(ctx context.Context, indexName string, documents []ma
 
 		actionJSON, _ := json.Marshal(action)
 		bulkBody.WriteString(string(actionJSON))
-		bulkBody.WriteString("\\n")
+		bulkBody.WriteString("\n")
 
 		docJSON, _ := json.Marshal(doc)
 		bulkBody.WriteString(string(docJSON))
-		bulkBody.WriteString("\\n")
+		bulkBody.WriteString("\n")
 	}
 
 	res, err := c.es.Bulk(strings.NewReader(bulkBody.String()))

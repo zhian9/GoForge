@@ -107,17 +107,24 @@ func (s *OrderService) GetOrder(ctx context.Context, req *v1.GetOrderRequest) (*
 
 // ListOrders 获取订单列表
 func (s *OrderService) ListOrders(ctx context.Context, req *v1.ListOrdersRequest) (*v1.ListOrdersResponse, error) {
-	// 关键安全修复：只查「当前登录用户」的订单。
-	// 修复前这里直接用请求参数里的 user_id，导致不登录、随便传一个 user_id
-	// 就能读到他人订单的完整信息（订单号、金额、商品、收货信息）。
+	// 只认 token 里的身份，不看请求参数里自报的 user_id。
+	//
+	// 普通用户：只能查自己的订单（这是之前的安全修复，防止随便传 user_id 越权读他人订单）。
+	// 管理员：token 里带 is_admin=1，允许查全部订单（req.UserId=0）或按 req.UserId 过滤，
+	//         否则后台的订单管理永远只能看到管理员自己的订单 —— 表现为「看不到任何订单」。
 	userID, ok := utils.GetUserID(ctx)
 	if !ok || userID == 0 {
 		return nil, status.Error(codes.Unauthenticated, "未授权，请先登录")
 	}
 
+	targetUserID := userID
+	if isAdmin, _ := utils.GetIsAdmin(ctx); isAdmin == 1 {
+		targetUserID = uint64(req.UserId)
+	}
+
 	// 转换请求
 	listReq := &service.ListOrdersRequest{
-		UserID:   userID,
+		UserID:   targetUserID,
 		Status:   int8(req.Status),
 		Page:     int(req.Page),
 		PageSize: int(req.PageSize),

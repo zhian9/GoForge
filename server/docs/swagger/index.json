@@ -1,0 +1,56 @@
+{
+  "specs": [
+    {
+      "url": "/swagger/api/user/v1/user.swagger.json",
+      "name": "用户服务"
+    },
+    {
+      "url": "/swagger/api/product/v1/product.swagger.json",
+      "name": "商品服务"
+    },
+    {
+      "url": "/swagger/api/seckill/v1/seckill.swagger.json",
+      "name": "秒杀服务"
+    },
+    {
+      "url": "/swagger/api/search/v1/search.swagger.json",
+      "name": "搜索服务"
+    },
+    {
+      "url": "/swagger/api/order/v1/order.swagger.json",
+      "name": "订单服务"
+    },
+    {
+      "url": "/swagger/api/payment/v1/payment.swagger.json",
+      "name": "支付服务"
+    },
+    {
+      "url": "/swagger/api/review/v1/review.swagger.json",
+      "name": "评价服务"
+    },
+    {
+      "url": "/swagger/api/inventory/v1/inventory.swagger.json",
+      "name": "库存服务"
+    },
+    {
+      "url": "/swagger/api/logistics/v1/logistics.swagger.json",
+      "name": "物流服务"
+    },
+    {
+      "url": "/swagger/api/cart/v1/cart.swagger.json",
+      "name": "购物车服务"
+    },
+    {
+      "url": "/swagger/api/promotion/v1/promotion.swagger.json",
+      "name": "营销服务"
+    },
+    {
+      "url": "/swagger/api/message/v1/message.swagger.json",
+      "name": "消息服务"
+    },
+    {
+      "url": "/swagger/api/file/v1/file.swagger.json",
+      "name": "文件服务"
+    }
+  ]
+}

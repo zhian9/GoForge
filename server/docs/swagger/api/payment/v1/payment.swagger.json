@@ -1,0 +1,220 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: payment-service）",
+    "title": "payment service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "payment"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/payments": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: payment.v1.PaymentService/CreatePayment",
+        "operationId": "payment.v1.PaymentService_CreatePayment",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 payment.v1.PaymentService/CreatePayment 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreatePayment",
+        "tags": [
+          "payment"
+        ]
+      }
+    },
+    "/api/v1/payments/callback": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: payment.v1.PaymentService/PaymentCallback",
+        "operationId": "payment.v1.PaymentService_PaymentCallback",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 payment.v1.PaymentService/PaymentCallback 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "PaymentCallback",
+        "tags": [
+          "payment"
+        ]
+      }
+    },
+    "/api/v1/payments/{payment_no}": {
+      "get": {
+        "description": "gRPC 方法: payment.v1.PaymentService/GetPayment",
+        "operationId": "payment.v1.PaymentService_GetPayment",
+        "parameters": [
+          {
+            "description": "payment_no 参数",
+            "in": "path",
+            "name": "payment_no",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetPayment",
+        "tags": [
+          "payment"
+        ]
+      }
+    },
+    "/api/v1/payments/{payment_no}/refund": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: payment.v1.PaymentService/Refund",
+        "operationId": "payment.v1.PaymentService_Refund",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 payment.v1.PaymentService/Refund 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "Refund",
+        "tags": [
+          "payment"
+        ]
+      }
+    },
+    "/api/v1/payments/{payment_no}/status": {
+      "get": {
+        "description": "gRPC 方法: payment.v1.PaymentService/QueryPaymentStatus",
+        "operationId": "payment.v1.PaymentService_QueryPaymentStatus",
+        "parameters": [
+          {
+            "description": "payment_no 参数",
+            "in": "path",
+            "name": "payment_no",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "QueryPaymentStatus",
+        "tags": [
+          "payment"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

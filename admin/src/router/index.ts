@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { tokenCarriesAdmin } from '@/utils/auth'
 import { ElMessage } from 'element-plus'
 
 const routes: RouteRecordRaw[] = [
@@ -109,7 +110,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
   
   if (to.path === '/login') {
@@ -122,6 +123,12 @@ router.beforeEach((to, from, next) => {
   } else {
     // 需要登录且为管理员
     if (!userStore.token) {
+      next('/login')
+    } else if (!tokenCarriesAdmin(userStore.token)) {
+      // 旧版 token 不含 is_admin：服务端会按普通用户处理（订单等跨用户查询会直接返回空），
+      // 与其让页面显示空数据，不如让用户重新登录换取新 token。
+      userStore.logout()
+      ElMessage.warning('登录信息已更新，请重新登录')
       next('/login')
     } else if (userStore.userInfo && Number((userStore.userInfo as any).is_admin ?? (userStore.userInfo as any).isAdmin ?? 0) !== 1) {
       userStore.logout()

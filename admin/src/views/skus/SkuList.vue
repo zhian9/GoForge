@@ -91,7 +91,7 @@
         <!-- 规格编辑 -->
         <el-form-item label="规格" prop="specs">
           <div class="specs-editor">
-            <div v-for="(k,i) in specKeys" :key="i" class="spec-row">
+            <div v-for="(_k,i) in specKeys" :key="i" class="spec-row">
               <input v-model="specKeys[i]" placeholder="规格名" class="spec-input" @input="onSpecChange(i)" />
               <input v-model="specValues[i]" placeholder="规格值" class="spec-input" @input="onSpecChange(i)" />
               <button type="button" class="spec-del" @click="removeSpec(i)">×</button>
@@ -129,6 +129,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { resolveAssetUrl, uploadUrl } from '@/utils/api'
 import { getSkuList, createSku, updateSku, deleteSku, type Sku, type CreateSkuRequest } from '@/api/sku'
 import { getProductList, type Product } from '@/api/product'
 import { getToken } from '@/utils/auth'
@@ -147,11 +148,11 @@ const submitting = ref(false); const formRef = ref<FormInstance>()
 const formData = reactive<CreateSkuRequest & { id?: number }>({ product_id:0, sku_code:'', name:'', specs:{}, price:0, original_price:undefined, stock:0, image:'', weight:undefined, volume:undefined, status:1 })
 const specKeys = ref<string[]>([]); const specValues = ref<string[]>([]); const skuCodeTouched = ref(false)
 
-const uploadAction = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/files/upload`
+const uploadAction = uploadUrl
 const uploadHeaders = { Authorization: `Bearer ${getToken()}` }
 
 const fmt = (v:any) => { const n = Number(v||0); return isNaN(n) ? '0.00' : n.toFixed(2) }
-const getImageUrl = (url:string) => { if(!url)return''; if(url.startsWith('http'))return url; return `http://localhost:8080${url.startsWith('/')?'':'/'}${url}` }
+const getImageUrl = resolveAssetUrl
 const getProductName = (pid:number|undefined) => { const p = productList.value.find(x=>x.id===pid); return p?p.name:`ID:${pid}` }
 
 const buildAutoSkuCode = () => {
@@ -191,7 +192,7 @@ const handleDialogClose = () => resetForm()
 
 const addSpec = () => { specKeys.value.push(''); specValues.value.push('') }
 const removeSpec = (i:number) => { specKeys.value.splice(i,1); specValues.value.splice(i,1); updateFormDataSpecs() }
-const onSpecChange = (i:number) => updateFormDataSpecs()
+const onSpecChange = (_i:number) => updateFormDataSpecs()
 const updateFormDataSpecs = () => {
   const s:Record<string,string>={}; specKeys.value.forEach((k,i)=>{if(k&&specValues.value[i])s[k]=specValues.value[i]}); formData.specs=s
   if(!isEdit.value&&!skuCodeTouched.value&&formData.product_id) formData.sku_code = buildAutoSkuCode()

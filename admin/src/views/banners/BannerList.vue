@@ -123,6 +123,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormRules, type UploadProps } from 'element-plus'
+import { resolveAssetUrl as resolveUrl, uploadUrl } from '@/utils/api'
 import { getBannerList, createBanner, updateBanner, deleteBanner } from '@/api/banner'
 import type { Banner, CreateBannerRequest } from '@/api/banner'
 import { useUserStore } from '@/stores/user'
@@ -141,10 +142,9 @@ const formData = ref<CreateBannerRequest & { id?: number; start_time?: string; e
 })
 const formRules: FormRules = { image_local: [{ required: true, message: '请上传封面图片', trigger: 'change' }] }
 
-const uploadAction = computed(() => 'http://localhost:8080/api/v1/files/upload')
+const uploadAction = computed(() => uploadUrl)
 const uploadHeaders = computed(() => ({ Authorization: userStore.token ? `Bearer ${userStore.token}` : '' }))
 
-const resolveUrl = (url: string) => { if (!url) return ''; if (url.startsWith('http')) return url; if (url.startsWith('/')) return 'http://localhost:8080' + url; return url }
 const getBannerImageUrl = (b: any) => resolveUrl(b.image_local || b.image || '')
 const getBannerImage = (b: Banner) => getBannerImageUrl(b)
 

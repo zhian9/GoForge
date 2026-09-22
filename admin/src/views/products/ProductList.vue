@@ -118,6 +118,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
+import { resolveAssetUrl, uploadUrl } from '@/utils/api'
 import { getProductList, createProduct, updateProduct, deleteProduct, type Product, type CreateProductRequest } from '@/api/product'
 import { getCategoryTree, type Category } from '@/api/category'
 import { useUserStore } from '@/stores/user'
@@ -131,12 +132,12 @@ const dialogVisible = ref(false); const dialogTitle = ref('新增商品'); const
 const submitting = ref(false); const currentProductId = ref<number>(0); const formRef = ref<FormInstance>()
 const formData = ref<CreateProductRequest & { images?: string[]; local_images?: string[]; description?: string }>({ name:'',description:'',price:0,original_price:0,category_id:0,status:1,is_hot:0,images:[],local_images:[] })
 
-const uploadAction = computed(() => 'http://localhost:8080/api/v1/files/upload')
+const uploadAction = computed(() => uploadUrl)
 const uploadHeaders = computed(() => ({ Authorization: userStore.token ? `Bearer ${userStore.token}` : '' }))
 const flatCategories = computed(() => { const r: Category[] = []; const f = (cats: Category[]) => cats.forEach(c => { r.push(c); if (c.children?.length) f(c.children) }); f(categoryTree.value); return r })
 
 const fmt = (v:any) => { const n = Number(v||0); return isNaN(n) ? '0.00' : n.toFixed(2) }
-const getImageUrl = (url: string|null|undefined) => { if (!url) return ''; if (url.startsWith('http')) return url; return `http://localhost:8080${url.startsWith('/')?'':'/'}${url}` }
+const getImageUrl = resolveAssetUrl
 
 const getCategoryNameById = (id: number|null|undefined) => {
   const nid = Number(id||0); if (!nid || !categoryTree.value.length) return '未分类'
@@ -196,7 +197,7 @@ const handleSubmit = async () => {
     try {
       const data: any = { name:formData.value.name, price:formData.value.price, category_id:cid, status:formData.value.status||1, is_hot:formData.value.is_hot||0, main_image:formData.value.main_image||'', local_main_image:formData.value.local_main_image||'', images:Array.isArray(formData.value.images)?formData.value.images:[], local_images:Array.isArray(formData.value.local_images)?formData.value.local_images:[] }
       if (formData.value.description) { data.detail = formData.value.description; data.description = formData.value.description }
-      if (formData.value.original_price>0) data.original_price = formData.value.original_price
+      if ((formData.value.original_price ?? 0) > 0) data.original_price = formData.value.original_price
       if (isEdit.value) { await updateProduct(currentProductId.value, data); ElMessage.success('已更新') }
       else { await createProduct(data); ElMessage.success('已创建') }
       dialogVisible.value=false; await fetchCategoryTree(); fetchProductList()

@@ -3,6 +3,12 @@ Name: message-service
 ListenOn: 0.0.0.0:8009
 Mode: dev
 
+# 注册到 etcd，供网关按 key 发现本服务
+Etcd:
+  Hosts:
+    - 172.18.0.1:12389
+  Key: message.rpc
+
 # 超时配置
 Timeout: 5000
 
@@ -59,3 +65,11 @@ BizRedis:
   PoolSize: 10
   MinIdleConns: 5
 
+# Kafka：订阅订单/支付事件自动生成站内信
+Kafka:
+  Brokers:
+    - 172.18.0.1:9092
+  Version: 2.8.0
+  ConsumerGroup: message-service-notify
+  # 站内信只关心新事件，不重放历史订单
+  OffsetInitial: newest

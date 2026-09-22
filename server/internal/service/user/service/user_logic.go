@@ -332,7 +332,8 @@ func (u *UserLogic) Login(ctx context.Context, req *LoginRequest, jwtSecret stri
 	}
 
 	//5.生产jwt Token
-	token, err := utils.GenerateToken(user.ID, user.Username, jwtSecret, jwtExpire)
+	// 把管理员标识写进 token：订单等后台需要跨用户查询的服务要据此放行
+	token, err := utils.GenerateTokenWithAdmin(user.ID, user.Username, user.IsAdmin, jwtSecret, jwtExpire)
 	if err != nil {
 		return nil, errors.NewInternalError("生产Token失败:" + err.Error())
 	}

@@ -55,6 +55,7 @@ func AuthInterceptor(jwtSecret string) grpc.UnaryServerInterceptor {
 
 		ctx = utils.WithUserID(ctx, claims.UserID)
 		ctx = utils.WithUsername(ctx, claims.Username)
+		ctx = utils.WithIsAdmin(ctx, claims.IsAdmin)
 		return handler(ctx, req)
 	}
 }

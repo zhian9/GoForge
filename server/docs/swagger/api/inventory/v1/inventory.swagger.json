@@ -1,0 +1,111 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: inventory-service）",
+    "title": "inventory service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "inventory"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/inventory/deduct": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: inventory.v1.InventoryService/DeductStock",
+        "operationId": "inventory.v1.InventoryService_DeductStock",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 inventory.v1.InventoryService/DeductStock 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "DeductStock",
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/v1/inventory/{sku_id}": {
+      "get": {
+        "description": "gRPC 方法: inventory.v1.InventoryService/GetInventory",
+        "operationId": "inventory.v1.InventoryService_GetInventory",
+        "parameters": [
+          {
+            "description": "sku_id 参数",
+            "in": "path",
+            "name": "sku_id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetInventory",
+        "tags": [
+          "inventory"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

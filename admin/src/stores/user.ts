@@ -25,7 +25,7 @@ export const useUserStore = defineStore('user', () => {
         if (response.data.user) {
           userInfo.value = {
             ...response.data.user,
-            is_admin: response.data.user.isAdmin ?? response.data.user.is_admin ?? 0
+            is_admin: (response.data.user as any).isAdmin ?? response.data.user.is_admin ?? 0
           } as any
         }
         // 后台刷新用户信息（失败不影响登录）

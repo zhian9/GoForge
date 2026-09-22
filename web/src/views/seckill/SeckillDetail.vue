@@ -65,7 +65,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getSeckillActivity, seckill, type SeckillActivity } from '@/api/seckill'
 import { getPublicUrl } from '@/utils/image'
+import { placeholderImage } from '@/utils/placeholder'
 import { useUserStore } from '@/stores/user'
+import { ensureLogin } from '@/utils/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -154,7 +156,8 @@ const buttonText = computed(() => {
 
 const handleImgError = (e: Event) => {
   const img = e.target as HTMLImageElement
-  img.src = '/placeholder.png'
+  // 原先指向 /placeholder.png，但 public/ 下并没有这个文件，失败会二次 404
+  img.src = placeholderImage(400, '暂无图片')
 }
 
 const fetchDetail = async () => {
@@ -174,11 +177,8 @@ const fetchDetail = async () => {
 
 const handleSeckill = async () => {
   if (!activity.value) return
-  if (!userStore.token || !userStore.userId) {
-    ElMessage.warning('请先登录再参与秒杀')
-    router.push('/login')
-    return
-  }
+  if (!ensureLogin(router, '请先登录再参与秒杀')) return
+  if (!userStore.userId) { ElMessage.warning('账号信息异常，请重新登录'); return }
   submitLoading.value = true
   try {
     const resp = await seckill({
@@ -218,7 +218,7 @@ onUnmounted(() => {
 .empty {
   padding: 60px 0;
   text-align: center;
-  color: #999;
+  color: var(--text-dim);
 }
 
 .wrap {
@@ -230,8 +230,10 @@ onUnmounted(() => {
 .img {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #f5f5f5;
-  border-radius: 10px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012));
+  border: 1px solid var(--gf-stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--gf-shadow-2), var(--gf-inner-shadow);
   overflow: hidden;
 }
 
@@ -245,12 +247,13 @@ onUnmounted(() => {
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: #333;
+  color: var(--text);
+  letter-spacing: -0.01em;
 }
 
 .sku {
   margin-top: 6px;
-  color: #666;
+  color: var(--text-dim);
   font-size: 14px;
 }
 
@@ -263,20 +266,21 @@ onUnmounted(() => {
 
 .price .label {
   font-size: 12px;
-  color: #999;
+  color: var(--text-dim);
   margin-right: 8px;
 }
 
 .price .val {
   font-size: 26px;
   font-weight: 800;
-  color: #ff3b30;
+  color: var(--price);
+  letter-spacing: -0.01em;
 }
 
 .price.origin .val {
   font-size: 16px;
   font-weight: 600;
-  color: #999;
+  color: var(--text-dim);
   text-decoration: line-through;
 }
 
@@ -288,34 +292,35 @@ onUnmounted(() => {
 }
 
 .stat {
-  border: 1px solid #eee;
-  border-radius: 10px;
+  border: 1px solid var(--gf-stroke);
+  border-radius: var(--radius-sm);
   padding: 12px;
-  background: #fff;
+  background: var(--gf-glass-1);
+  box-shadow: var(--gf-inner-shadow-soft);
 }
 
 .stat .k {
   font-size: 12px;
-  color: #999;
+  color: var(--text-dim);
 }
 
 .stat .v {
   margin-top: 6px;
   font-size: 16px;
   font-weight: 700;
-  color: #333;
+  color: var(--text);
 }
 
 .stat .v.on {
-  color: #ff3b30;
+  color: var(--danger);
 }
 
 .stat .v.pending {
-  color: #ff6900;
+  color: var(--warning);
 }
 
 .stat .v.off {
-  color: #999;
+  color: var(--text-dim);
 }
 
 .action {
@@ -328,7 +333,7 @@ onUnmounted(() => {
 .hint {
   margin-top: 12px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-dim);
 }
 
 @media (max-width: 1000px) {

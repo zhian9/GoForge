@@ -2,10 +2,25 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/stores/user'
+import { apiBaseUrl } from '@/utils/api'
+
+/**
+ * 401 时跳登录页。
+ *
+ * 必须带上当前地址：游客可能是在商品详情页点「加入购物车」触发的登录要求，
+ * 登录后应当回到原页面继续操作，而不是被丢回首页。
+ * 这里用 window.location 而不是 router，是为了不把路由实例耦合进请求层。
+ */
+const redirectToLogin = () => {
+  const current = window.location.pathname + window.location.search
+  if (current.startsWith('/login')) return
+  window.location.href = `/login?redirect=${encodeURIComponent(current)}`
+}
 
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  // 默认同源 /api（开发由 Vite 代理、生产由 Nginx 反代），也可用 VITE_API_BASE_URL 指定网关
+  baseURL: apiBaseUrl,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -41,7 +56,7 @@ service.interceptors.response.use(
       if (res.code === 401) {
         const userStore = useUserStore()
         userStore.logout()
-        window.location.href = '/login'
+        redirectToLogin()
       }
       return Promise.reject(new Error(res.message || '请求失败'))
     }
@@ -76,7 +91,7 @@ service.interceptors.response.use(
         errorMessage = '未授权，请重新登录'
         const userStore = useUserStore()
         userStore.logout()
-        window.location.href = '/login'
+        redirectToLogin()
       } else if (status === 404) {
         errorMessage = '请求的资源不存在'
       } else if (status === 500) {

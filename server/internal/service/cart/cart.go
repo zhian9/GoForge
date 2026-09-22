@@ -63,14 +63,16 @@ func NewServiceContext(c Config) *ServiceContext {
 		Redis:  redisClient,
 	}
 
-	// 初始化商品服务 gRPC 客户端（用于查询 SKU 价格）
-	if c.ProductRpc.Target != "" {
-		conn, err := zrpc.NewClient(c.ProductRpc)
-		if err != nil {
-			logx.Errorf("初始化商品服务客户端失败: %v", err)
-		} else {
-			ctx.ProductRpc = productpb.NewProductServiceClient(conn.Conn())
-		}
+	// 初始化商品服务 gRPC 客户端（用于补齐购物车条目的商品名 / 价格 / 图片）。
+	//
+	// 这里原来判断的是 `c.ProductRpc.Target != ""`，而部署配置用的是 Etcd 服务发现
+	// （ProductRpc.Etcd.Hosts + Key），Target 始终为空 —— 客户端从未被创建，
+	// resolveCartItemInfo 直接返回空信息，于是购物车和下单页的商品名称/价格/图片全是空的。
+	// 现在按配置直接创建：配置缺失时 NewClient 会返回错误并记录日志，不影响服务启动。
+	if conn, err := zrpc.NewClient(c.ProductRpc); err != nil {
+		logx.Errorf("初始化商品服务客户端失败（购物车将无法补齐商品信息）: %v", err)
+	} else {
+		ctx.ProductRpc = productpb.NewProductServiceClient(conn.Conn())
 	}
 
 	// 初始化Repository

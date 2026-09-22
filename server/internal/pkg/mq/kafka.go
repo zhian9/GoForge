@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/zeromicro/go-zero/core/logx"
+	"strings"
 	"time"
 )
 
@@ -14,7 +15,10 @@ type Config struct {
 	Brokers       []string `json:"required"`
 	ProducerAsync bool     `json:"default=true"`
 	Version       string   `json:"default=2.8.0"`
-	ConsumerGroup string   `json:"optional"`
+	ConsumerGroup string   `json:",optional"`
+	// OffsetInitial 消费者首次启动从哪儿开始：oldest（默认，重放历史）/ newest（只消费新消息）
+	// 通知类消费（如站内信）应该用 newest，否则会把历史事件全部重放一遍
+	OffsetInitial string `json:",optional"`
 }
 
 // Message 消息结构
@@ -180,6 +184,11 @@ func NewConsumer(cfg *Config) (*Consumer, error) {
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.NewBalanceStrategyRoundRobin()
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	if strings.EqualFold(cfg.OffsetInitial, "newest") {
+		config.Consumer.Offsets.Initial = sarama.OffsetNewest
+	}
+	// 打开错误通道：连接、重平衡、拉取失败会通过 Errors() 暴露出来
+	config.Consumer.Return.Errors = true
 	config.Version, _ = sarama.ParseKafkaVersion(cfg.Version)
 
 	consumer, err := sarama.NewConsumerGroup(cfg.Brokers, cfg.ConsumerGroup, config)
@@ -201,6 +210,13 @@ func (c *Consumer) RegisterHandler(topic string, handler MessageHandler) {
 
 // Start 启动消费者
 func (c *Consumer) Start(ctx context.Context, topics []string) error {
+	// 把消费者内部错误打出来（连接、重平衡、拉取失败等）
+	go func() {
+		for err := range c.consumer.Errors() {
+			logx.Errorf("Kafka 消费者错误: %v", err)
+		}
+	}()
+
 	handler := &consumerGroupHandler{
 		handlers: c.handlers,
 	}

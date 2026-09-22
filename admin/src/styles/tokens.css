@@ -1,0 +1,97 @@
+/**
+ * GoForge 管理后台设计 token。
+ *
+ * 与用户端 web/src/styles/tokens.css 同源：同一套色板与材质语言，
+ * 但后台是「工具」而不是「门面」，所以用更小的圆角、更少的装饰、更紧的行高。
+ *
+ * 两个应用是独立构建的（各自的 Dockerfile 只拷贝自己目录），因此 token 各存一份，
+ * 改动时两边需要同步 —— 这样换来的好处是任一应用都能单独构建、单独部署。
+ */
+
+:root {
+  /* ==================== 基底 ==================== */
+  --gf-void: #04060c;
+  --gf-bg: #060911;
+  --gf-bg-elev: #0a0e18;
+
+  /* 后台特有的两块实心面：侧边栏与顶栏需要比内容区更「实」，保证表格可读 */
+  --gf-sidebar: #070b14;
+  --gf-topbar: rgba(8, 12, 20, 0.72);
+
+  /* ==================== 液态玻璃材质 ==================== */
+  --gf-glass-1: rgba(255, 255, 255, 0.04);
+  --gf-glass-2: rgba(255, 255, 255, 0.058);
+  --gf-glass-3: rgba(255, 255, 255, 0.09);
+  --gf-glass-deep: rgba(6, 9, 17, 0.78);
+
+  --gf-blur-xs: 8px;
+  --gf-blur-sm: 14px;
+  --gf-blur: 20px;
+  --gf-blur-lg: 28px;
+  --gf-saturate: 170%;
+
+  --gf-stroke: rgba(255, 255, 255, 0.085);
+  --gf-stroke-strong: rgba(255, 255, 255, 0.16);
+  --gf-specular: rgba(255, 255, 255, 0.18);
+  --gf-inner-shadow: inset 0 1px 0 var(--gf-specular), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  --gf-inner-shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  --gf-shadow-1: 0 4px 14px -8px rgba(0, 0, 0, 0.6);
+  --gf-shadow-2: 0 16px 40px -20px rgba(0, 0, 0, 0.8);
+  --gf-shadow-3: 0 32px 72px -28px rgba(0, 0, 0, 0.88);
+
+  /* ==================== 强调色 ==================== */
+  --gf-accent: #4fd8ff;
+  --gf-accent-2: #8b7cff;
+  --gf-accent-3: #6ee7c8;
+  --gf-gold: #e8c88a;
+  --gf-gradient: linear-gradient(120deg, #4fd8ff 0%, #8b7cff 52%, #6ee7c8 100%);
+
+  --accent: var(--gf-accent);
+  --accent-dim: rgba(79, 216, 255, 0.12);
+  --accent-soft: rgba(79, 216, 255, 0.06);
+  --accent-glow: rgba(79, 216, 255, 0.32);
+
+  /* ==================== 文本 ==================== */
+  --gf-text: #edf2fa;
+  --gf-text-dim: #9aa6bf;
+  --gf-text-mute: #6c7891;
+
+  /* ==================== 语义色 ==================== */
+  --gf-success: #4ade9b;
+  --gf-warning: #fbbf6b;
+  --gf-danger: #ff6b81;
+  --gf-info: #7cc0ff;
+
+  /* 后台专属：状态色（订单 / 支付 / 物流状态标签共用一套，避免每个页面各写一份） */
+  --gf-status-cancel: var(--gf-danger);
+  --gf-status-pending: var(--gf-warning);
+  --gf-status-progress: var(--gf-info);
+  --gf-status-active: var(--gf-accent);
+  --gf-status-done: var(--gf-success);
+
+  /* ==================== 圆角（后台比用户端更方正） ==================== */
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 8px;
+  --radius-lg: 20px;
+  --radius-pill: 100px;
+
+  /* ==================== 兼容旧变量名 ==================== */
+  --text: var(--gf-text);
+  --text-dim: var(--gf-text-dim);
+  --border: var(--gf-stroke);
+  --card: var(--gf-glass-2);
+  --card-bg: var(--gf-glass-1);
+
+  /* ==================== 字体 ==================== */
+  --gf-font: "Inter", "SF Pro Display", "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --gf-font-num: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* ==================== 层级 ==================== */
+  --gf-z-content: 1;
+  --gf-z-sidebar: 20;
+  --gf-z-topbar: 30;
+}
+

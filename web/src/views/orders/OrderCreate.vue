@@ -27,7 +27,7 @@
           <div class="order-items">
             <div v-for="item in orderItems" :key="item.skuId" class="item-row">
               <div class="item-img">
-                <img :src="getItemImage(item)" :alt="item.productName" @error="e=>(e.target as HTMLImageElement).src=placeholderUri" />
+                <img :src="getItemImage(item)" :alt="item.productName" @error="e=>(e.target as HTMLImageElement).src=thumbPlaceholderUri" />
               </div>
               <div class="item-info">
                 <h4 class="item-name">{{ item.productName || '商品 '+item.skuId }}</h4>
@@ -46,10 +46,31 @@
           <h3 class="card-title">订单摘要</h3>
           <div class="checkout-row"><span>商品合计</span><span>¥{{ fmt(totalAmount) }}</span></div>
           <div class="checkout-row"><span>运费</span><span>{{ freightAmount===0?'免运费':'¥'+fmt(freightAmount) }}</span></div>
+          <div class="checkout-row">
+            <span>优惠券</span>
+            <el-select
+              v-model="selectedUserCouponId"
+              size="small"
+              placeholder="不使用优惠券"
+              style="width:180px"
+              @change="handleCouponChange"
+            >
+              <el-option label="不使用优惠券" :value="0" />
+              <el-option
+                v-for="uc in usableCoupons"
+                :key="uc.id"
+                :label="couponLabel(uc)"
+                :value="uc.id"
+              />
+            </el-select>
+          </div>
+          <div class="checkout-row" v-if="couponDiscount > 0">
+            <span>优惠</span><span class="discount-amount">-¥{{ fmt(couponDiscount) }}</span>
+          </div>
           <div class="checkout-divider"></div>
           <div class="checkout-total">
             <span>应付总额</span>
-            <span class="total-price">¥{{ fmt(totalAmount + freightAmount) }}</span>
+            <span class="total-price">¥{{ fmt(payableAmount) }}</span>
           </div>
           <button
             class="btn-submit"
@@ -116,6 +137,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { resolveAssetUrl as resolveUrl } from '@/utils/api'
 import { ElMessage } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
@@ -124,6 +146,17 @@ import { removeItem } from '@/api/cart'
 import { getAddressList, addAddress, updateAddress } from '@/api/user'
 import type { CartItem } from '@/api/cart'
 import type { Address } from '@/api/user'
+import {
+  getCouponList,
+  getUserCoupons,
+  calculateDiscount,
+  couponFaceText,
+  couponThresholdText,
+  type Coupon,
+  type UserCoupon,
+} from '@/api/promotion'
+import { placeholderImage } from '@/utils/placeholder'
+import { ensureLogin } from '@/utils/auth'
 
 const route = useRoute(); const router = useRouter()
 const cartStore = useCartStore(); const userStore = useUserStore()
@@ -139,14 +172,71 @@ const editingAddressId = ref<number|null>(null)
 const addressSaving = ref(false)
 const addressForm = reactive({ receiver_name:'', receiver_phone:'', province:'', city:'', district:'', detail:'', is_default:false })
 
-const placeholderUri = 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#1a1f2e" width="200" height="200"/><text fill="#4a5068" font-size="14" x="50%" y="50%" text-anchor="middle" dominant-baseline="central">无图</text></svg>')
+// 订单条目里的图只有 64px，用不带文字的小尺寸占位图
+const thumbPlaceholderUri = placeholderImage(160, '')
 
-const resolveUrl = (url:string) => {if(!url)return'';if(url.startsWith('http'))return url;if(url.startsWith('/'))return'http://localhost:8080'+url;return url}
 const fmt = (v:any) => {const n=Number(v||0);return isNaN(n)?'0.00':n.toFixed(2)}
-const getItemImage = (item:CartItem) => item.productImage?resolveUrl(item.productImage):placeholderUri
+const getItemImage = (item:CartItem) => item.productImage?resolveUrl(item.productImage):thumbPlaceholderUri
 const displayAddress = (addr:any) => [addr.province,addr.city,addr.district,addr.detail].filter(Boolean).join('')||addr.receiver_address||''
 const totalAmount = computed(() => orderItems.value.reduce((s,i)=>s+(i.price||0)*i.quantity,0))
 const freightAmount = computed(() => totalAmount.value>=69?0:10)
+
+// ===== 优惠券 =====
+// 注意：传给下单接口的 coupon_id 是「用户券 ID」（user_coupon.id），
+// 而试算接口用的是「券模板 ID」，两者别混。
+const userCoupons = ref<UserCoupon[]>([])
+const couponTemplates = ref<Coupon[]>([])
+const selectedUserCouponId = ref(0)
+const couponDiscount = ref(0)
+
+const couponMap = computed(() => {
+  const map = new Map<number, Coupon>()
+  couponTemplates.value.forEach(c => map.set(Number(c.id), c))
+  return map
+})
+const couponTemplateOf = (uc: UserCoupon) => couponMap.value.get(Number(uc.coupon_id))
+/** 未使用、未过期且达到门槛的券才可选 */
+const usableCoupons = computed(() =>
+  userCoupons.value.filter(uc => {
+    if (uc.status !== 0) return false
+    if (uc.expire_at && new Date(uc.expire_at).getTime() < Date.now()) return false
+    const tpl = couponTemplateOf(uc)
+    return !tpl || Number(tpl.min_amount) <= totalAmount.value
+  })
+)
+const couponLabel = (uc: UserCoupon) => {
+  const tpl = couponTemplateOf(uc)
+  const name = tpl?.name || '优惠券'
+  return `${name}（${couponFaceText(tpl)} · ${couponThresholdText(tpl)}）`
+}
+const payableAmount = computed(() => Math.max(totalAmount.value + freightAmount.value - couponDiscount.value, 0))
+
+const loadCoupons = async () => {
+  try {
+    const tplRes: any = await getCouponList({ status: 1, page: 1, page_size: 100 })
+    couponTemplates.value = tplRes?.data || []
+    if (userStore.token) {
+      const mineRes: any = await getUserCoupons(Number(userStore.userId || 0), 0)
+      userCoupons.value = mineRes?.data || []
+    }
+  } catch {
+    // 券信息失败不影响下单流程
+  }
+}
+
+const handleCouponChange = async () => {
+  couponDiscount.value = 0
+  if (!selectedUserCouponId.value) return
+  const uc = userCoupons.value.find(c => c.id === selectedUserCouponId.value)
+  const tpl = uc && couponTemplateOf(uc)
+  if (!tpl) return
+  try {
+    const res: any = await calculateDiscount(Number(tpl.id), totalAmount.value)
+    couponDiscount.value = Number(res?.data?.discount_amount || 0) || 0
+  } catch {
+    ElMessage.warning('优惠券试算失败，可稍后重试')
+  }
+}
 
 const confirmAddress = () => {
   const addr = addresses.value.find(a=>a.id===selectedAddressId.value)
@@ -156,12 +246,23 @@ const confirmAddress = () => {
 const handleSubmit = async () => {
   if(!selectedAddress.value){ElMessage.warning('请选择收货地址');return}
   if(orderItems.value.length===0){ElMessage.warning('订单商品不能为空');return}
-  if(!userStore.userId){ElMessage.warning('请先登录');router.push('/login');return}
+  if(!ensureLogin(router, '请先登录后再提交订单'))return
   submitting.value=true
   try{
     const addr = selectedAddress.value
     const addrStr = displayAddress(addr)
-    const r = await createOrder({user_id:userStore.userId,items:orderItems.value.map(i=>({sku_id:i.skuId,quantity:i.quantity,product_name:i.productName||'',price:String(i.price||0)})),address_id:addr.id,receiver_name:addr.receiver_name,receiver_phone:addr.receiver_phone,receiver_address:addrStr,clear_cart:false,order_type:1})
+    const r = await createOrder({
+      user_id:userStore.userId,
+      items:orderItems.value.map(i=>({sku_id:i.skuId,quantity:i.quantity,product_name:i.productName||'',price:String(i.price||0)})),
+      address_id:addr.id,
+      receiver_name:addr.receiver_name,
+      receiver_phone:addr.receiver_phone,
+      receiver_address:addrStr,
+      clear_cart:false,
+      order_type:1,
+      // 用户券 ID（不是券模板 ID）；不选则不带，后端按 0 处理
+      coupon_id:selectedUserCouponId.value > 0 ? selectedUserCouponId.value : undefined,
+    })
     if(r.code===0&&r.data){
       ElMessage.success('订单创建成功')
       // 只移除已下单的商品，未选中的商品保留在购物车
@@ -255,18 +356,18 @@ const loadOrderItems = async () => {
   orderItems.value = cartStore.cartItems.filter(i => i.isSelected === 1).map(i => ({...i}))
 }
 
-onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses(),loadOrderItems()])}finally{loading.value=false}})
+onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses(),loadOrderItems(),loadCoupons()])}finally{loading.value=false}})
 </script>
 
 <style scoped>
-.order-page { --accent:#00F5FF; --accent-dim:rgba(0,245,255,0.08); --bg:#0A0F1C; --card-bg:rgba(255,255,255,0.02); --text:#EDF0F5; --text-dim:#8890A5; --border:rgba(255,255,255,0.06); --radius:16px; --radius-sm:10px; max-width:1100px; margin:0 auto; padding:32px 24px; min-height:calc(100vh-64px); font-family:'Inter','PingFang SC','SF Pro Display',-apple-system,sans-serif; }
+.order-page { max-width:1100px; margin:0 auto; padding:32px 24px; min-height:calc(100vh-64px); font-family:var(--gf-font); }
 .page-title { font-size:28px; font-weight:700; margin:0 0 32px; color:var(--text); letter-spacing:-.01em; }
 
 .order-layout { display:flex; gap:24px; align-items:flex-start; }
 .order-main { flex:1; min-width:0; }
 
 /* Card */
-.card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-bottom:20px; }
+.card { background:var(--gf-glass-2); -webkit-backdrop-filter:blur(var(--gf-blur)) saturate(var(--gf-saturate)); backdrop-filter:blur(var(--gf-blur)) saturate(var(--gf-saturate)); border:1px solid var(--gf-stroke); border-radius:var(--radius); box-shadow:var(--gf-inner-shadow); padding:24px; margin-bottom:20px; }
 .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .card-title { font-size:16px; font-weight:600; margin:0; color:var(--text); }
 
@@ -277,31 +378,32 @@ onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses()
 .addr-detail { font-size:13px; color:var(--text-dim); margin:0; }
 .btn-link { background:none;border:none;color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;padding:0; }
 .btn-link:hover { opacity:.8; }
-.btn-outline { padding:10px 24px;border-radius:100px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s; }
-.btn-outline:hover { background:var(--accent-dim); }
+.btn-outline { padding:10px 24px;border-radius:var(--radius-pill);border:1px solid rgba(79,216,255,.4);background:var(--gf-glass-1);color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;box-shadow:var(--gf-inner-shadow-soft);transition:all .2s; }
+.btn-outline:hover { background:var(--accent-dim);border-color:rgba(79,216,255,.6); }
 
 /* Order Items */
 .order-items { display:flex; flex-direction:column; }
-.item-row { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
+.item-row { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--gf-stroke); }
 .item-row:last-child { border-bottom:none; }
-.item-img { width:64px;height:64px;border-radius:var(--radius-sm);overflow:hidden;background:#111827;flex-shrink:0; }
+.item-img { width:64px;height:64px;border-radius:var(--radius-sm);overflow:hidden;background:linear-gradient(150deg,rgba(255,255,255,.05),rgba(255,255,255,.01));flex-shrink:0; }
 .item-img img { width:100%;height:100%;object-fit:cover; }
 .item-info { flex:1;min-width:0; }
 .item-name { font-size:14px;font-weight:500;color:var(--text);margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.item-price { font-size:13px;color:var(--accent);font-weight:600; }
+.item-price { font-size:13px;color:var(--price);font-weight:600; }
 .item-qty { font-size:14px;color:var(--text-dim);width:50px;text-align:center; }
 .item-sub { font-size:15px;font-weight:600;color:var(--text);width:80px;text-align:right; }
 
 /* Checkout Sidebar */
 .order-sidebar { width:340px; flex-shrink:0; position:sticky; top:88px; }
-.checkout-card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:24px; }
+.checkout-card { background:var(--gf-glass-2); -webkit-backdrop-filter:blur(var(--gf-blur-lg)) saturate(var(--gf-saturate)); backdrop-filter:blur(var(--gf-blur-lg)) saturate(var(--gf-saturate)); border:1px solid var(--gf-stroke-strong); border-radius:var(--radius); box-shadow:var(--gf-shadow-3),var(--gf-inner-shadow); padding:24px; }
 .checkout-row { display:flex; justify-content:space-between; padding:8px 0; font-size:14px; color:var(--text-dim); }
-.checkout-divider { height:1px; background:var(--border); margin:12px 0; }
+.checkout-row .discount-amount { color:#7CE38B; font-weight:600; }
+.checkout-divider { height:1px; background:var(--gf-stroke); margin:12px 0; }
 .checkout-total { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
 .checkout-total span:first-child { font-size:16px; font-weight:600; color:var(--text); }
-.total-price { font-size:28px; font-weight:800; color:var(--accent); letter-spacing:-.02em; }
-.btn-submit { width:100%; padding:16px; border-radius:100px; border:none; background:var(--accent); color:#0A0F1C; font-size:16px; font-weight:700; cursor:pointer; transition:all .2s; margin-top:20px; }
-.btn-submit:hover:not(:disabled) { box-shadow:0 0 32px rgba(0,245,255,.35); transform:translateY(-2px); }
+.total-price { font-size:28px; font-weight:800; color:var(--price); letter-spacing:-.02em; }
+.btn-submit { width:100%; padding:16px; border-radius:var(--radius-pill); border:none; background:var(--gf-gradient); color:#04121a; font-size:16px; font-weight:700; cursor:pointer; box-shadow:var(--gf-inner-shadow-soft),0 12px 32px -14px var(--accent-glow); transition:filter .2s,box-shadow .2s,transform .2s; margin-top:20px; }
+.btn-submit:hover:not(:disabled) { filter:brightness(1.06); box-shadow:var(--gf-inner-shadow-soft),0 20px 46px -16px var(--accent-glow); transform:translateY(-2px); }
 .btn-submit:disabled { opacity:.35; cursor:not-allowed; }
 .btn-submit.loading { opacity:.7; }
 .freight-hint { font-size:12px; color:var(--text-dim); text-align:center; margin:10px 0 0; }
@@ -310,30 +412,30 @@ onMounted(async () => {loading.value=true;try{await Promise.all([loadAddresses()
 .empty-block { text-align:center; padding:24px 0; color:var(--text-dim); font-size:14px; cursor:pointer; }
 
 /* Modal */
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:200; display:flex; align-items:center; justify-content:center; }
-.modal-card { background:#111827; border:1px solid var(--border); border-radius:var(--radius); padding:28px; width:520px; max-height:80vh; overflow-y:auto; }
+.modal-overlay { position:fixed; inset:0; background:rgba(4,6,12,.62); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); z-index:200; display:flex; align-items:center; justify-content:center; }
+.modal-card { background:var(--gf-glass-deep); -webkit-backdrop-filter:blur(var(--gf-blur-lg)) saturate(var(--gf-saturate)); backdrop-filter:blur(var(--gf-blur-lg)) saturate(var(--gf-saturate)); border:1px solid var(--gf-stroke-strong); border-radius:var(--radius); box-shadow:var(--gf-shadow-3),var(--gf-inner-shadow); padding:28px; width:520px; max-height:80vh; overflow-y:auto; }
 .modal-title { font-size:18px; font-weight:600; color:var(--text); margin:0 0 20px; }
 .modal-footer { display:flex; justify-content:flex-end; gap:12px; margin-top:20px; }
 .address-list { display:flex; flex-direction:column; gap:10px; }
-.addr-option { display:flex; gap:12px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; transition:all .15s; }
-.addr-option:hover { border-color:rgba(255,255,255,.15); }
-.addr-option.selected { border-color:var(--accent); background:var(--accent-dim); }
-.radio-dot { width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;margin-top:2px;transition:all .15s; }
-.radio-dot.checked { border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 4px rgba(0,245,255,.15); }
+.addr-option { display:flex; gap:12px; padding:14px; border:1px solid var(--gf-stroke); background:var(--gf-glass-1); border-radius:var(--radius-sm); box-shadow:var(--gf-inner-shadow-soft); cursor:pointer; transition:all .2s; }
+.addr-option:hover { border-color:var(--gf-stroke-strong); background:var(--gf-glass-2); }
+.addr-option.selected { border-color:rgba(79,216,255,.5); background:var(--accent-dim); }
+.radio-dot { width:18px;height:18px;border-radius:50%;border:1px solid var(--gf-stroke-strong);flex-shrink:0;margin-top:2px;transition:all .15s; }
+.radio-dot.checked { border-color:transparent;background:var(--gf-gradient);box-shadow:0 0 0 4px rgba(79,216,255,.15); }
 .addr-content p { margin:0 0 4px; }
 .addr-content .addr-name { font-size:14px;font-weight:600;color:var(--text); }
 .addr-content .addr-phone { font-weight:400;color:var(--text-dim);margin-left:6px;font-size:13px; }
 .addr-content .addr-detail { font-size:13px;color:var(--text-dim); }
-.btn-cancel { padding:10px 24px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:14px;cursor:pointer;transition:all .2s; }
-.btn-cancel:hover { background:rgba(255,255,255,.04); }
-.btn-save { padding:10px 28px;border-radius:100px;border:none;background:var(--accent);color:#0A0F1C;font-size:14px;font-weight:600;cursor:pointer; }
-.btn-save:hover { box-shadow:0 0 20px rgba(0,245,255,.3); }
+.btn-cancel { padding:10px 24px;border-radius:var(--radius-pill);border:1px solid var(--gf-stroke);background:var(--gf-glass-1);color:var(--text);font-size:14px;cursor:pointer;box-shadow:var(--gf-inner-shadow-soft);transition:all .2s; }
+.btn-cancel:hover { background:var(--gf-glass-2);border-color:var(--gf-stroke-strong); }
+.btn-save { padding:10px 28px;border-radius:var(--radius-pill);border:none;background:var(--gf-gradient);color:#04121a;font-size:14px;font-weight:700;cursor:pointer;box-shadow:var(--gf-inner-shadow-soft),0 10px 26px -12px var(--accent-glow); }
+.btn-save:hover { filter:brightness(1.06);box-shadow:var(--gf-inner-shadow-soft),0 16px 34px -14px var(--accent-glow); }
 .addr-edit { flex-shrink:0; }
 .address-form { display:flex; flex-direction:column; gap:12px; }
 .form-row { display:flex; align-items:center; gap:10px; }
 .form-row label { width:70px; font-size:13px; color:var(--text-dim); flex-shrink:0; }
-.form-row input { flex:1; padding:9px 12px; border-radius:8px; background:rgba(255,255,255,.04); border:1px solid var(--border); color:var(--text); font-size:13px; outline:none; transition:border-color .2s; font-family:inherit; }
-.form-row input:focus { border-color:var(--accent); }
+.form-row input { flex:1; padding:9px 12px; border-radius:var(--radius-sm); background:var(--gf-glass-1); border:1px solid var(--gf-stroke); color:var(--text); font-size:13px; outline:none; box-shadow:var(--gf-inner-shadow-soft); transition:border-color .2s,box-shadow .2s; font-family:inherit; }
+.form-row input:focus { border-color:rgba(79,216,255,.5); box-shadow:var(--gf-inner-shadow-soft),0 0 0 3px var(--accent-dim); }
 .default-check { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim); cursor:pointer; }
 .footer-right { display:flex; gap:12px; }
 

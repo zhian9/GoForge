@@ -30,6 +30,9 @@ WORKDIR /app
 
 COPY --from=builder /build/bin/ /app/bin/
 COPY configs/docker/ /app/configs/
+# Swagger 文档由 cmd/generate-swagger 生成（见 server/docs/swagger），
+# 网关内嵌的 Swagger UI 会从 /app/docs/swagger 读取，因此必须一起进镜像
+COPY server/docs/ /app/docs/
 COPY deploy/docker/entrypoint.sh /app/
 
 RUN chmod +x /app/entrypoint.sh && mkdir -p /app/logs /app/uploads /app/images

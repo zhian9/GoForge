@@ -52,6 +52,31 @@ func (s *CartService) GetCart(ctx context.Context, req *v1.GetCartRequest) (*v1.
 		return nil, convertError(err)
 	}
 
+	// 兜底补齐历史脏数据：早期写入的条目因为上面那个 RPC 初始化问题，
+	// 只存了 sku_id 而没有名称/价格/图片。这里在读取时补一次，
+	// 让用户不必把商品删掉重新加购就能看到完整信息。
+	for _, item := range resp.Items {
+		if item == nil {
+			continue
+		}
+		if item.ProductName != "" && item.Price > 0 {
+			continue
+		}
+		skuID, name, price, image := s.resolveCartItemInfo(ctx, int64(item.SkuID))
+		if skuID > 0 {
+			item.SkuID = skuID
+		}
+		if name != "" {
+			item.ProductName = name
+		}
+		if price > 0 {
+			item.Price = price
+		}
+		if image != "" {
+			item.ProductImage = image
+		}
+	}
+
 	items := make([]*v1.CartItem, 0, len(resp.Items))
 	for _, item := range resp.Items {
 		items = append(items, convertCartItemToProto(item))

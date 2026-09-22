@@ -154,5 +154,3 @@ docker compose up -d --force-recreate admin-builder web-builder
 5. **`down` 后再 `up`，部分容器卡在 `Created`（gateway/nginx 不启动）**：Kafka 要等 Zookeeper 先 `healthy`，启动慢会反复失败几次，导致依赖它的 `order-consumer` 和依赖链末端的 gateway/nginx 停在 `Created`。**等 Kafka 变成 `healthy` 后再执行一次 `docker compose up -d`** 即可把剩余容器拉起。
 
 ---
-
-*关联：[GATEWAY_DEPLOYMENT.md](GATEWAY_DEPLOYMENT.md)（网关设计 + 启动依赖原理）、[README.md](../README.md)*

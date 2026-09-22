@@ -62,13 +62,16 @@ const drawCaptcha = () => {
   // 生成验证码
   currentCode = generateCode()
 
-  // 设置背景
-  ctx.fillStyle = '#f5f5f5'
+  // 设置背景：跟随暗色玻璃主题，避免在深色卡片里出现一块刺眼的白底
+  const bg = ctx.createLinearGradient(0, 0, width, height)
+  bg.addColorStop(0, '#111a2c')
+  bg.addColorStop(1, '#0a0f1c')
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, width, height)
 
-  // 绘制干扰线
+  // 绘制干扰线（低饱和冷色，不干扰字符辨识）
   for (let i = 0; i < 3; i++) {
-    ctx.strokeStyle = `rgb(${Math.floor(Math.random() * 200)}, ${Math.floor(Math.random() * 200)}, ${Math.floor(Math.random() * 200)})`
+    ctx.strokeStyle = `rgba(79, 216, 255, ${0.12 + Math.random() * 0.18})`
     ctx.beginPath()
     ctx.moveTo(Math.random() * width, Math.random() * height)
     ctx.lineTo(Math.random() * width, Math.random() * height)
@@ -86,8 +89,9 @@ const drawCaptcha = () => {
     const x = (width / (currentCode.length + 1)) * (i + 1)
     const y = height / 2
 
-    // 随机颜色
-    ctx.fillStyle = `rgb(${Math.floor(Math.random() * 100)}, ${Math.floor(Math.random() * 100)}, ${Math.floor(Math.random() * 100)})`
+    // 从冰湖蓝 / 薰衣草紫 / 薄荷绿里随机取色，和强调色板保持一致
+    const palette = ['#CFE6FF', '#9FE7FF', '#C9C0FF', '#A8F0DC', '#FFFFFF']
+    ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)]
     
     // 随机旋转
     ctx.save()
@@ -99,7 +103,7 @@ const drawCaptcha = () => {
 
   // 绘制干扰点
   for (let i = 0; i < 30; i++) {
-    ctx.fillStyle = `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.08 + Math.random() * 0.22})`
     ctx.beginPath()
     ctx.arc(Math.random() * width, Math.random() * height, 1, 0, 2 * Math.PI)
     ctx.fill()
@@ -162,16 +166,18 @@ onMounted(() => {
 .captcha-image {
   position: relative;
   cursor: pointer;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border: 1px solid var(--gf-stroke, rgba(255, 255, 255, 0.09));
+  border-radius: var(--radius-xs, 8px);
   overflow: hidden;
-  background: #f5f5f5;
-  transition: all 0.3s;
+  background: #0a0f1c;
+  box-shadow: var(--gf-inner-shadow-soft, inset 0 1px 0 rgba(255, 255, 255, 0.12));
+  transition: border-color 0.3s, box-shadow 0.3s;
   flex-shrink: 0;
 }
 
 .captcha-image:hover {
-  border-color: #409eff;
+  border-color: rgba(79, 216, 255, 0.5);
+  box-shadow: var(--gf-inner-shadow-soft, inset 0 1px 0 rgba(255, 255, 255, 0.12)), 0 0 0 3px rgba(79, 216, 255, 0.12);
 }
 
 .captcha-image canvas {
@@ -187,7 +193,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(4, 6, 12, 0.55);
+  backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -198,7 +205,7 @@ onMounted(() => {
 
 .captcha-refresh .el-icon {
   font-size: 18px;
-  color: #409eff;
+  color: var(--accent, #4fd8ff);
 }
 </style>
 

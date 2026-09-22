@@ -94,6 +94,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { resolveAssetUrl } from '@/utils/api'
 import { getSkuList, type Sku } from '@/api/sku'
 import { getSeckillActivityList, createSeckillActivity, updateSeckillActivity, deleteSeckillActivity, type SeckillActivity } from '@/api/seckill'
 import PageHeader from '@/components/PageHeader.vue'
@@ -118,7 +119,7 @@ const rules: FormRules = {
 
 const fmt = (v:any) => { const n=Number(v||0); return isNaN(n)?'0.00':n.toFixed(2) }
 const fmtTime = (s?:number) => { const sec=Number(s||0); if(!sec)return'-'; return new Date(sec*1000).toLocaleString() }
-const getImageUrl = (url:string) => { if(!url)return''; if(url.startsWith('http'))return url; if(url.startsWith('/'))return`http://localhost:8080${url}`; return`http://localhost:8080/${url}` }
+const getImageUrl = resolveAssetUrl
 const statusText = (v?:number) => ({0:'未开始',1:'进行中',2:'已结束'}[v??-1]||'-')
 
 const fetchSkus = async () => { try{const r = await getSkuList({page:1,page_size:200,status:1}) as any; skuOptions.value=r.data?.list||[]}catch{} }

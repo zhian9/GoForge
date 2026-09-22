@@ -99,6 +99,9 @@ func (c *PaymentConsumer) ConsumePaymentRefund(ctx context.Context, message *mq.
 
 	// 退款回增库存：释放下单时扣减的 sku.stock / inventory
 	c.restockOrder(ctx, msg.OrderID)
+
+	// 整单退款后把优惠券退回未使用状态（与取消订单一致）
+	releaseUserCoupon(ctx, c.db, msg.OrderID)
 	return nil
 }
 

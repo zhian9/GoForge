@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/zhian9/GoForge/server/internal/pkg/errors"
 	"github.com/zhian9/GoForge/server/internal/service/promotion/model"
@@ -15,6 +19,7 @@ type PromotionLogic struct {
 	userCouponRepo repository.UserCouponRepository
 	promotionRepo  repository.PromotionRepository
 	pointsRepo     repository.PointsRepository
+	db             *gorm.DB
 }
 
 // NewPromotionLogic 创建营销业务逻辑
@@ -23,12 +28,14 @@ func NewPromotionLogic(
 	userCouponRepo repository.UserCouponRepository,
 	promotionRepo repository.PromotionRepository,
 	pointsRepo repository.PointsRepository,
+	db *gorm.DB,
 ) *PromotionLogic {
 	return &PromotionLogic{
 		couponRepo:     couponRepo,
 		userCouponRepo: userCouponRepo,
 		promotionRepo:  promotionRepo,
 		pointsRepo:     pointsRepo,
+		db:             db,
 	}
 }
 
@@ -65,56 +72,71 @@ type ReceiveCouponRequest struct {
 
 // ReceiveCoupon 领取优惠券
 func (l *PromotionLogic) ReceiveCoupon(ctx context.Context, req *ReceiveCouponRequest) error {
-	// 获取优惠券信息
-	coupon, err := l.couponRepo.GetByID(ctx, req.CouponID)
-	if err != nil {
-		return apperrors.NewNotFoundError("优惠券不存在")
+	// 领取过程放在同一个事务里，并先锁住券模板行（SELECT ... FOR UPDATE），
+	// 同一张券的并发领取会被串行化，total_count 与 per_user_limit 两个限制都能守住。
+	if l.db == nil {
+		return apperrors.NewInternalError("数据库连接未初始化")
 	}
 
-	// 检查优惠券状态
-	if coupon.Status != 1 {
-		return apperrors.NewError(7001, "优惠券已禁用")
-	}
+	return l.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var coupon model.Coupon
+		if err := tx.WithContext(ctx).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", req.CouponID).
+			First(&coupon).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return apperrors.NewNotFoundError("优惠券不存在")
+			}
+			return apperrors.NewInternalError("查询优惠券失败: " + err.Error())
+		}
 
-	// 检查是否在有效期内
-	now := time.Now()
-	if now.Before(coupon.ValidStartTime) || now.After(coupon.ValidEndTime) {
-		return apperrors.NewError(7002, "优惠券不在有效期内")
-	}
+		// 检查优惠券状态
+		if coupon.Status != 1 {
+			return apperrors.NewError(7001, "优惠券已禁用")
+		}
 
-	// 检查是否还有剩余
-	if coupon.TotalCount > 0 && coupon.UsedCount >= coupon.TotalCount {
-		return apperrors.NewError(7003, "优惠券已领完")
-	}
+		// 检查是否在有效期内
+		now := time.Now()
+		if now.Before(coupon.ValidStartTime) || now.After(coupon.ValidEndTime) {
+			return apperrors.NewError(7002, "优惠券不在有效期内")
+		}
 
-	// 检查用户是否已达到限领数量
-	count, err := l.userCouponRepo.CountByUserAndCoupon(ctx, req.UserID, req.CouponID)
-	if err != nil {
-		return apperrors.NewInternalError("检查领取数量失败")
-	}
-	if int64(coupon.PerUserLimit) > 0 && count >= int64(coupon.PerUserLimit) {
-		return apperrors.NewError(7004, "已达到限领数量")
-	}
+		// 检查是否还有剩余（used_count 沿用原语义：累计领取数量）
+		if coupon.TotalCount > 0 && coupon.UsedCount >= coupon.TotalCount {
+			return apperrors.NewError(7003, "优惠券已领完")
+		}
 
-	// 创建用户优惠券
-	userCoupon := &model.UserCoupon{
-		UserID:    req.UserID,
-		CouponID:  req.CouponID,
-		Status:    0, // 未使用
-		ExpireAt:  coupon.ValidEndTime,
-		CreatedAt: time.Now(),
-	}
+		// 检查用户是否已达到限领数量（同一事务内计数，配合行锁保证准确）
+		var received int64
+		if err := tx.WithContext(ctx).Model(&model.UserCoupon{}).
+			Where("user_id = ? AND coupon_id = ?", req.UserID, req.CouponID).
+			Count(&received).Error; err != nil {
+			return apperrors.NewInternalError("检查领取数量失败: " + err.Error())
+		}
+		if coupon.PerUserLimit > 0 && received >= int64(coupon.PerUserLimit) {
+			return apperrors.NewError(7004, "已达到限领数量")
+		}
 
-	err = l.userCouponRepo.Create(ctx, userCoupon)
-	if err != nil {
-		return apperrors.NewInternalError("领取优惠券失败")
-	}
+		userCoupon := &model.UserCoupon{
+			UserID:    req.UserID,
+			CouponID:  req.CouponID,
+			Status:    0, // 未使用
+			ExpireAt:  coupon.ValidEndTime,
+			CreatedAt: now,
+		}
+		if err := tx.WithContext(ctx).Create(userCoupon).Error; err != nil {
+			return apperrors.NewInternalError("领取优惠券失败: " + err.Error())
+		}
 
-	// 更新优惠券已使用数量
-	coupon.UsedCount++
-	_ = l.couponRepo.Update(ctx, coupon)
+		// 用 SQL 自增，避免把整行读出来再写回覆盖掉并发更新
+		if err := tx.WithContext(ctx).Model(&model.Coupon{}).
+			Where("id = ?", coupon.ID).
+			UpdateColumn("used_count", gorm.Expr("used_count + 1")).Error; err != nil {
+			return apperrors.NewInternalError("更新领取数量失败: " + err.Error())
+		}
 
-	return nil
+		return nil
+	})
 }
 
 // GetUserCouponListRequest 获取用户优惠券列表请求

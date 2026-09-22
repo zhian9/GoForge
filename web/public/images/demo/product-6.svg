@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#131A2A"/><stop offset="0.55" stop-color="#0B101C"/><stop offset="1" stop-color="#070A12"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="34%" r="58%">
+      <stop offset="0" stop-color="#FF8A9B" stop-opacity="0.34"/><stop offset="1" stop-color="#FF8A9B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.10"/><stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <rect width="800" height="800" fill="url(#glow)"/>
+  <rect width="800" height="800" fill="url(#sheen)"/>
+  <circle cx="400" cy="360" r="230" fill="none" stroke="#FF8A9B" stroke-opacity="0.14" stroke-width="2"/>
+  <ellipse cx="400" cy="612" rx="196" ry="30" fill="#000" opacity="0.36"/>
+  <g transform="translate(400 372) scale(11.5) translate(-12 -12)" fill="none" stroke="#FF8A9B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.95"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></g>
+  <text x="400" y="712" fill="#EDF2FA" fill-opacity="0.9" font-size="34" font-weight="700" font-family="'PingFang SC','Microsoft YaHei',system-ui,sans-serif" text-anchor="middle">iPad Pro M4</text>
+  <text x="400" y="754" fill="#FF8A9B" fill-opacity="0.85" font-size="20" letter-spacing="3" font-family="system-ui,sans-serif" text-anchor="middle">APPLE IPAD</text>
+</svg>

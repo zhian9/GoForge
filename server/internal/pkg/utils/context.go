@@ -9,6 +9,7 @@ type contextKey string
 const (
 	userIDKey   contextKey = "user_id"
 	usernameKey contextKey = "username"
+	isAdminKey  contextKey = "is_admin"
 )
 
 // WithUserID 将用户ID添加到Context
@@ -31,4 +32,15 @@ func WithUsername(ctx context.Context, username string) context.Context {
 func GetUsername(ctx context.Context) (string, bool) {
 	username, ok := ctx.Value(usernameKey).(string)
 	return username, ok
+}
+
+// WithIsAdmin 将管理员标识添加到Context
+func WithIsAdmin(ctx context.Context, isAdmin int8) context.Context {
+	return context.WithValue(ctx, isAdminKey, isAdmin)
+}
+
+// GetIsAdmin 从Context获取管理员标识（1 表示管理员）
+func GetIsAdmin(ctx context.Context) (int8, bool) {
+	isAdmin, ok := ctx.Value(isAdminKey).(int8)
+	return isAdmin, ok
 }

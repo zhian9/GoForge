@@ -245,6 +245,7 @@ func (l *PaymentLogic) PaymentCallback(ctx context.Context, req *PaymentCallback
 
 		// 发布支付成功事件，联动订单服务
 		l.publishEvent(ctx, mq.TopicPaymentSuccess, payment.PaymentNo, map[string]interface{}{
+			"user_id":        payment.UserID,
 			"order_id":       payment.OrderID,
 			"order_no":       payment.OrderNo,
 			"payment_no":     payment.PaymentNo,
@@ -270,6 +271,7 @@ func (l *PaymentLogic) PaymentCallback(ctx context.Context, req *PaymentCallback
 	payment.Status = model.PaymentStatusFailed
 	_ = l.writeLog(ctx, payment, "pay_fail", payment.Amount, &before, &payment.Status, nil)
 	l.publishEvent(ctx, mq.TopicPaymentFailed, payment.PaymentNo, map[string]interface{}{
+		"user_id":    payment.UserID,
 		"order_id":   payment.OrderID,
 		"order_no":   payment.OrderNo,
 		"payment_no": payment.PaymentNo,
@@ -345,6 +347,7 @@ func (l *PaymentLogic) Refund(ctx context.Context, req *RefundRequest) (*RefundR
 	}
 
 	l.publishEvent(ctx, mq.TopicPaymentRefunded, payment.PaymentNo, map[string]interface{}{
+		"user_id":         payment.UserID,
 		"order_id":        payment.OrderID,
 		"order_no":        payment.OrderNo,
 		"payment_no":      payment.PaymentNo,

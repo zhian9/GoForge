@@ -121,6 +121,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { resolveAssetUrl } from '@/utils/api'
 import { getUserList, deleteUser, register, updateUserInfo, type UserInfo, type ListUsersParams } from '@/api/user'
 import PageHeader from '@/components/PageHeader.vue'
 import DarkCard from '@/components/DarkCard.vue'
@@ -138,7 +139,7 @@ const formRules: FormRules = {
   email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
 }
 
-const resolveAvatar = (url: string) => { if (!url) return ''; if (url.startsWith('http')) return url; if (url.startsWith('/')) return 'http://localhost:8080' + url; return '' }
+const resolveAvatar = resolveAssetUrl
 const levelText = (l: number) => ({ 0:'普通',1:'VIP1',2:'VIP2',3:'VIP3' }[l]||'普通')
 const levelClass = (l: number) => l >= 3 ? 'vip3' : l >= 2 ? 'vip2' : l >= 1 ? 'vip1' : ''
 

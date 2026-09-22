@@ -25,13 +25,9 @@ export const useCartStore = defineStore('cart', () => {
     try {
       const response = await getCart()
       if (response.code === 0) {
-        // 后端返回的 data 可能是数组，也可能是 { items: [] }
-        let newItems: any[] = []
-        if (Array.isArray(response.data)) {
-          newItems = response.data
-        } else if (response.data && response.data.items) {
-          newItems = response.data.items
-        }
+        // api 层已统一成数组（并补齐了商品名/价格/图片）；这里再兜一层历史对象结构
+        const payload: any = response.data
+        const newItems: any[] = Array.isArray(payload) ? payload : (payload?.items ?? [])
 
         // 规范化数据：price 可能为字符串，需要转 number；补充缺失字段
         const normalized: CartItem[] = newItems.map((item: any) => ({

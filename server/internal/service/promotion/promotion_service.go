@@ -29,6 +29,7 @@ func NewPromotionService(svcCtx *ServiceContext) *PromotionService {
 		svcCtx.UserCouponRepo,
 		svcCtx.PromotionRepo,
 		svcCtx.PointsRepo,
+		svcCtx.DB,
 	)
 
 	return &PromotionService{

@@ -1,0 +1,271 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: order-service）",
+    "title": "order service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "order"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/orders": {
+      "get": {
+        "description": "gRPC 方法: order.v1.OrderService/ListOrders",
+        "operationId": "order.v1.OrderService_ListOrders",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ListOrders",
+        "tags": [
+          "order"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: order.v1.OrderService/CreateOrder",
+        "operationId": "order.v1.OrderService_CreateOrder",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 order.v1.OrderService/CreateOrder 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateOrder",
+        "tags": [
+          "order"
+        ]
+      }
+    },
+    "/api/v1/orders/stats": {
+      "get": {
+        "description": "gRPC 方法: order.v1.OrderService/GetStats",
+        "operationId": "order.v1.OrderService_GetStats",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetStats",
+        "tags": [
+          "order"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "description": "gRPC 方法: order.v1.OrderService/GetOrder",
+        "operationId": "order.v1.OrderService_GetOrder",
+        "parameters": [
+          {
+            "description": "id 参数",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetOrder",
+        "tags": [
+          "order"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/cancel": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: order.v1.OrderService/CancelOrder",
+        "operationId": "order.v1.OrderService_CancelOrder",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 order.v1.OrderService/CancelOrder 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CancelOrder",
+        "tags": [
+          "order"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/receive": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: order.v1.OrderService/ConfirmReceive",
+        "operationId": "order.v1.OrderService_ConfirmReceive",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 order.v1.OrderService/ConfirmReceive 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ConfirmReceive",
+        "tags": [
+          "order"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/ship": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: order.v1.OrderService/ShipOrder",
+        "operationId": "order.v1.OrderService_ShipOrder",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 order.v1.OrderService/ShipOrder 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ShipOrder",
+        "tags": [
+          "order"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

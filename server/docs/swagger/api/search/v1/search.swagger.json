@@ -1,0 +1,112 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: search-service）",
+    "title": "search service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "search"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/search/hot-keywords": {
+      "get": {
+        "description": "gRPC 方法: search.v1.SearchService/GetHotKeywords",
+        "operationId": "search.v1.SearchService_GetHotKeywords",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetHotKeywords",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/search/products": {
+      "get": {
+        "description": "gRPC 方法: search.v1.SearchService/SearchProducts",
+        "operationId": "search.v1.SearchService_SearchProducts",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "SearchProducts",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/v1/search/suggestions": {
+      "get": {
+        "description": "gRPC 方法: search.v1.SearchService/GetSearchSuggestions",
+        "operationId": "search.v1.SearchService_GetSearchSuggestions",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetSearchSuggestions",
+        "tags": [
+          "search"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

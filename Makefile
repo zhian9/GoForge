@@ -1,4 +1,4 @@
-.PHONY: help build test lint clean proto deps start-infra stop-infra start-all stop-all status redis-cli run
+.PHONY: help build test lint clean proto deps start-infra stop-infra start-all stop-all status redis-cli run auth-check seckill-check
 
 # ============================================
 # GoForge - Makefile
@@ -14,6 +14,7 @@ GOCMD   := go
 GOBUILD := $(GOCMD) build
 GOTEST  := $(GOCMD) test
 GOMOD   := $(GOCMD) mod
+GORUN   := $(GOCMD) run
 
 SERVICES := user product order payment inventory cart promotion review logistics message search recommend file job seckill
 GATEWAY  := api-gateway
@@ -53,6 +54,28 @@ deps: ## 下载依赖
 
 proto: ## 生成 Protobuf 代码
 	@cd $(SERVER_DIR) && find api -name "*.proto" -exec protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative {} \;
+
+swagger: ## 生成 Swagger/OpenAPI 文档到 server/docs/swagger
+	@cd $(SERVER_DIR) && $(GORUN) ./cmd/generate-swagger
+
+# ============================================
+# 本地开发（dev 模式：配置/二进制/前端都挂载宿主机目录）
+# ============================================
+
+dev-build: ## 交叉编译所有服务到 server/dev-bin/（替代重建镜像，10~20 秒）
+	@cd $(SERVER_DIR) && mkdir -p dev-bin && for svc in $(SERVICES); do \
+		echo "  $$svc-service"; \
+		GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="-s -w" -o "dev-bin/$$svc-service" "./cmd/$$svc-service"; \
+	done
+	@cd $(SERVER_DIR) && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="-s -w" -o dev-bin/$(GATEWAY) ./cmd/$(GATEWAY)
+	@cd $(SERVER_DIR) && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 $(GOBUILD) -ldflags="-s -w" -o dev-bin/order-service-consumer ./cmd/order-service-consumer
+	@echo "Done. Binaries in server/dev-bin/（改完代码重启对应容器即可生效）"
+
+dev-up: ## 以 dev 挂载模式启动全部服务（配置/二进制/前端走宿主机目录）
+	@cd $(DEPLOY_DIR) && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+dev-restart: ## 重启单个服务 (usage: make dev-restart SVC=user)
+	@cd $(DEPLOY_DIR) && docker compose -f docker-compose.yml -f docker-compose.dev.yml restart $(SVC)-service
 
 # ============================================
 # Docker 基础设施
@@ -108,5 +131,11 @@ run: ## 运行单个服务 (usage: make run SVC=user)
 
 redis-cli: ## 连接 Redis CLI
 	@docker exec -it goforge-redis redis-cli -a $${REDIS_PASSWORD:-508065}
+
+auth-check: ## 网关鉴权自检（越权/伪造 token，需网关已运行）
+	@cd $(SERVER_DIR) && $(GORUN) ./cmd/tools/auth-check
+
+seckill-check: ## 秒杀链路自检（超卖/重复下单，需服务与基础设施已运行）
+	@cd $(SERVER_DIR) && $(GORUN) ./cmd/tools/seckill-check
 
 .DEFAULT_GOAL := help

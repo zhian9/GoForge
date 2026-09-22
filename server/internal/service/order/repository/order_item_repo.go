@@ -12,6 +12,7 @@ type OrderItemRepository interface {
 	Create(ctx context.Context, item *model.OrderItem) error
 	CreateBatch(ctx context.Context, items []*model.OrderItem) error
 	GetByOrderID(ctx context.Context, orderID uint64) ([]*model.OrderItem, error)
+	GetByOrderIDs(ctx context.Context, orderIDs []uint64) (map[uint64][]*model.OrderItem, error)
 	GetByOrderNo(ctx context.Context, orderNo string) ([]*model.OrderItem, error)
 }
 
@@ -45,6 +46,26 @@ func (r *orderItemRepository) GetByOrderID(ctx context.Context, orderID uint64) 
 	var items []*model.OrderItem
 	err := r.db.WithContext(ctx).Where("order_id = ?", orderID).Find(&items).Error
 	return items, err
+}
+
+// GetByOrderIDs 批量获取多个订单的订单项，按订单 ID 分组返回（避免每单一次查询）
+func (r *orderItemRepository) GetByOrderIDs(ctx context.Context, orderIDs []uint64) (map[uint64][]*model.OrderItem, error) {
+	itemsByOrderID := make(map[uint64][]*model.OrderItem, len(orderIDs))
+	if len(orderIDs) == 0 {
+		return itemsByOrderID, nil
+	}
+
+	var items []*model.OrderItem
+	if err := r.db.WithContext(ctx).Where("order_id IN ?", orderIDs).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		itemsByOrderID[item.OrderID] = append(itemsByOrderID[item.OrderID], item)
+	}
+	return itemsByOrderID, nil
 }
 
 // GetByOrderNo 根据订单号获取订单商品项

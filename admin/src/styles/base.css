@@ -1,0 +1,162 @@
+/**
+ * 后台全局基座：reset、滚动条、极光背景、动效。
+ *
+ * 与用户端的区别：极光透明度压到很低。后台长时间盯表格，背景动效太强会干扰阅读，
+ * 所以这里只保留「玻璃有东西可折射」所需的最低限度色彩。
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--gf-void);
+}
+
+body {
+  font-family: var(--gf-font);
+  color: var(--gf-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 数字统一等宽，表格里的金额/数量不会左右跳动 */
+.gf-num,
+.stat-value,
+.el-table .cell {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: rgba(79, 216, 255, 0.26);
+  color: #fff;
+}
+
+/* ==================== 滚动条 ==================== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: content-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gf-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ==================== 极光背景（低强度） ==================== */
+.gf-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -20%, rgba(79, 216, 255, 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, var(--gf-bg) 0%, var(--gf-void) 100%);
+}
+
+.gf-aurora__blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  will-change: transform;
+}
+
+.gf-aurora__blob--1 {
+  width: 42vw;
+  height: 42vw;
+  min-width: 380px;
+  min-height: 380px;
+  top: -22vw;
+  left: -6vw;
+  background: radial-gradient(circle, rgba(79, 216, 255, 0.22) 0%, transparent 68%);
+  animation: gf-drift-a 40s ease-in-out infinite alternate;
+}
+
+.gf-aurora__blob--2 {
+  width: 36vw;
+  height: 36vw;
+  min-width: 320px;
+  min-height: 320px;
+  top: 30vh;
+  right: -14vw;
+  background: radial-gradient(circle, rgba(139, 124, 255, 0.2) 0%, transparent 68%);
+  animation: gf-drift-b 48s ease-in-out infinite alternate;
+}
+
+@keyframes gf-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(5vw, 4vh, 0) scale(1.1); }
+}
+
+@keyframes gf-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.05); }
+  to { transform: translate3d(-6vw, 6vh, 0) scale(0.95); }
+}
+
+/* ==================== 动效 ==================== */
+@keyframes gf-rise {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+.gf-rise {
+  animation: gf-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 路由切换：轻微上浮 + 淡出，比硬切显得连贯 */
+.gf-page-enter-active,
+.gf-page-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gf-page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.gf-page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+

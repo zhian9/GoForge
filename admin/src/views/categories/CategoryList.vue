@@ -18,7 +18,7 @@
         :expand-on-click-node="false"
         class="dark-tree"
       >
-        <template #default="{ node, data }">
+        <template #default="{ data }">
           <div class="tree-row" :class="'level-'+data.level">
             <div class="tree-main">
               <span class="node-name">{{ data.name }}</span>
@@ -102,6 +102,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
+import { uploadUrl } from '@/utils/api'
 import { getCategoryTree, createCategory, updateCategory, deleteCategory, type Category, type CreateCategoryRequest } from '@/api/category'
 import { useUserStore } from '@/stores/user'
 import PageHeader from '@/components/PageHeader.vue'
@@ -110,7 +111,7 @@ import DarkCard from '@/components/DarkCard.vue'
 const loading = ref(false)
 const categoryTree = ref<Category[]>([])
 const userStore = useUserStore()
-const uploadAction = computed(() => 'http://localhost:8080/api/v1/files/upload')
+const uploadAction = computed(() => uploadUrl)
 const uploadHeaders = computed(() => ({ Authorization: userStore.token ? `Bearer ${userStore.token}` : '' }))
 
 const dialogVisible = ref(false); const dialogTitle = ref('新增分类'); const isEdit = ref(false)

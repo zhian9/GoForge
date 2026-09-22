@@ -1,0 +1,312 @@
+/**
+ * 液态玻璃材质类 + Element Plus 主题对齐。
+ *
+ * 材质的三要素，缺一不可：
+ *   1. 半透明白（透光率决定“厚度”）
+ *   2. backdrop-filter blur + saturate（折射背景）
+ *   3. 顶部 1px 镜面高光 + 1px 边缘描边（裁切感，这是最容易被忽略但最出效果的一层）
+ */
+
+/* ==================== 材质工具类 ==================== */
+.gf-glass {
+  background: var(--gf-glass-2);
+  -webkit-backdrop-filter: blur(var(--gf-blur)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke);
+  box-shadow: var(--gf-shadow-2), var(--gf-inner-shadow);
+}
+
+.gf-glass--thin {
+  background: var(--gf-glass-1);
+  -webkit-backdrop-filter: blur(var(--gf-blur-sm)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-sm)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke);
+  box-shadow: var(--gf-inner-shadow-soft);
+}
+
+.gf-glass--thick {
+  background: var(--gf-glass-3);
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke-strong);
+  box-shadow: var(--gf-shadow-3), var(--gf-inner-shadow);
+}
+
+/* 虹彩描边：用渐变描边表达“多色折射”，比纯色边框高级且不抢内容。 */
+.gf-iridescent {
+  position: relative;
+}
+
+.gf-iridescent::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gf-gradient);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.gf-iridescent:hover::after {
+  opacity: 0.75;
+}
+
+/* 虹彩光晕：主按钮 / 强调元素的外发光 */
+.gf-glow {
+  box-shadow: 0 0 0 1px rgba(79, 216, 255, 0.24), 0 12px 34px -12px var(--accent-glow);
+}
+
+/* 渐变文字 */
+.gf-gradient-text {
+  background: var(--gf-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ==================== Element Plus 对齐 ====================
+ * 用户端只用到 form / input / button / input-number / message，
+ * 覆盖范围按实际使用面收敛，不做无差别全局重写。
+ */
+:root,
+html.dark {
+  --el-color-primary: var(--gf-accent);
+  --el-color-primary-light-3: #7ce3ff;
+  --el-color-primary-light-5: #9eeaff;
+  --el-color-primary-light-7: #c2f2ff;
+  --el-color-primary-light-8: rgba(79, 216, 255, 0.2);
+  --el-color-primary-light-9: rgba(79, 216, 255, 0.12);
+  --el-color-primary-dark-2: #34b7dd;
+
+  --el-color-success: var(--gf-success);
+  --el-color-warning: var(--gf-warning);
+  --el-color-danger: var(--gf-danger);
+  --el-color-error: var(--gf-danger);
+
+  --el-bg-color: var(--gf-bg);
+  --el-bg-color-overlay: rgba(14, 19, 31, 0.86);
+  --el-text-color-primary: var(--gf-text);
+  --el-text-color-regular: var(--gf-text);
+  --el-text-color-secondary: var(--gf-text-dim);
+  --el-text-color-placeholder: var(--gf-text-mute);
+  --el-border-color: var(--gf-stroke);
+  --el-border-color-light: var(--gf-stroke);
+  --el-border-color-lighter: var(--gf-stroke);
+  --el-fill-color-blank: transparent;
+
+  --el-border-radius-base: var(--radius-sm);
+  --el-border-radius-small: var(--radius-xs);
+  --el-box-shadow-light: var(--gf-shadow-2);
+}
+
+/* ---- 输入框 ---- */
+.el-input__wrapper {
+  background: var(--gf-glass-1) !important;
+  border: 1px solid var(--gf-stroke) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--gf-inner-shadow-soft) !important;
+  -webkit-backdrop-filter: blur(var(--gf-blur-sm)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-sm)) saturate(var(--gf-saturate));
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease !important;
+}
+
+.el-input__wrapper:hover {
+  border-color: var(--gf-stroke-strong) !important;
+  background: var(--gf-glass-2) !important;
+}
+
+.el-input__wrapper.is-focus,
+.el-input__wrapper:focus-within {
+  border-color: rgba(79, 216, 255, 0.55) !important;
+  background: var(--gf-glass-2) !important;
+  box-shadow:
+    var(--gf-inner-shadow-soft),
+    0 0 0 3px rgba(79, 216, 255, 0.14) !important;
+}
+
+.el-input__inner {
+  color: var(--gf-text) !important;
+  font-family: var(--gf-font) !important;
+}
+
+.el-input__inner::placeholder {
+  color: var(--gf-text-mute) !important;
+}
+
+.el-input__password,
+.el-input__icon,
+.el-input__suffix-inner {
+  color: var(--gf-text-dim) !important;
+}
+
+/* ---- 数字输入（秒杀数量） ---- */
+.el-input-number {
+  background: var(--gf-glass-1);
+  border-radius: var(--radius-sm);
+}
+
+.el-input-number__decrease,
+.el-input-number__increase {
+  background: transparent !important;
+  border-color: var(--gf-stroke) !important;
+  color: var(--gf-text-dim) !important;
+  transition: color 0.2s ease;
+}
+
+.el-input-number__decrease:hover,
+.el-input-number__increase:hover {
+  color: var(--gf-accent) !important;
+}
+
+/* ---- 按钮 ---- */
+.el-button {
+  font-family: var(--gf-font) !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-sm) !important;
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    background 0.25s ease !important;
+}
+
+/* 主按钮：虹彩渐变 + 镜面高光，是页面上唯一允许“发光”的元素 */
+.el-button--primary {
+  background: var(--gf-gradient) !important;
+  border: none !important;
+  color: #04121a !important;
+  box-shadow: var(--gf-inner-shadow-soft), 0 10px 28px -12px var(--accent-glow) !important;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  transform: translateY(-1px);
+  box-shadow: var(--gf-inner-shadow-soft), 0 16px 38px -14px var(--accent-glow) !important;
+  filter: brightness(1.06);
+}
+
+.el-button--primary:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+
+.el-button--primary.is-loading {
+  color: rgba(4, 18, 26, 0.7) !important;
+}
+
+.el-button--default {
+  background: var(--gf-glass-2) !important;
+  border: 1px solid var(--gf-stroke) !important;
+  color: var(--gf-text) !important;
+  box-shadow: var(--gf-inner-shadow-soft) !important;
+}
+
+.el-button--default:hover {
+  border-color: var(--gf-stroke-strong) !important;
+  background: var(--gf-glass-3) !important;
+  color: var(--gf-accent) !important;
+}
+
+/* ---- 表单校验提示 ---- */
+.el-form-item__error {
+  color: var(--gf-danger) !important;
+  font-size: 12px !important;
+  padding-top: 4px !important;
+}
+
+/* ---- 全局消息提示 ---- */
+.el-message {
+  background: var(--gf-glass-deep) !important;
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke-strong) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--gf-shadow-3), var(--gf-inner-shadow) !important;
+  padding: 12px 18px !important;
+}
+
+.el-message__content {
+  color: var(--gf-text) !important;
+  font-size: 13px !important;
+}
+
+.el-message .el-message-icon--success {
+  color: var(--gf-success) !important;
+}
+
+.el-message .el-message-icon--warning {
+  color: var(--gf-warning) !important;
+}
+
+.el-message .el-message-icon--error {
+  color: var(--gf-danger) !important;
+}
+
+.el-message .el-message-icon--info {
+  color: var(--gf-accent) !important;
+}
+
+/* ---- 弹窗 / 遮罩（当前页面未直接用，作为兜底） ---- */
+.el-overlay {
+  background: rgba(4, 6, 12, 0.6) !important;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.el-dialog,
+.el-drawer {
+  background: var(--gf-glass-deep) !important;
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke-strong) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--gf-shadow-3), var(--gf-inner-shadow) !important;
+}
+
+.el-popover.el-popper,
+.el-select__popper,
+.el-dropdown__popper {
+  background: var(--gf-glass-deep) !important;
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke-strong) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--gf-shadow-3), var(--gf-inner-shadow) !important;
+}
+
+.el-loading-mask {
+  background: rgba(6, 9, 17, 0.55) !important;
+  -webkit-backdrop-filter: blur(var(--gf-blur-sm));
+  backdrop-filter: blur(var(--gf-blur-sm));
+}
+
+/* ---- 不支持 backdrop-filter 的浏览器降级 ----
+ * 直接给足不透明度，保证可读性不塌。
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .gf-glass,
+  .gf-glass--thin,
+  .gf-glass--thick {
+    background: rgba(16, 21, 34, 0.94);
+  }
+
+  .el-message,
+  .el-dialog,
+  .el-drawer {
+    background: rgba(14, 19, 31, 0.98) !important;
+  }
+}
+

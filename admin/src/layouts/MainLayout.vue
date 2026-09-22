@@ -1,15 +1,25 @@
 <template>
   <div class="admin-layout">
+    <!-- 低强度极光：给玻璃材质提供可折射的内容 -->
+    <div class="gf-aurora" aria-hidden="true">
+      <span class="gf-aurora__blob gf-aurora__blob--1"></span>
+      <span class="gf-aurora__blob gf-aurora__blob--2"></span>
+    </div>
+
     <!-- ======== 侧边栏 ======== -->
-    <aside class="sidebar" :class="{ collapsed: collapsed }">
+    <aside class="sidebar" :class="{ collapsed }">
       <div class="sidebar-logo" @click="$router.push('/dashboard')">
         <img src="/logo-forge.png" alt="GoForge" class="logo-img" />
-        <span class="logo-text" v-show="!collapsed">管理后台</span>
+        <div v-show="!collapsed" class="logo-text">
+          <strong>GoForge</strong>
+          <span>管理后台</span>
+        </div>
       </div>
 
       <nav class="sidebar-nav">
         <template v-for="group in menuGroups" :key="group.label">
-          <div class="nav-group-label" v-show="!collapsed" v-if="group.label">{{ group.label }}</div>
+          <div v-if="group.label" v-show="!collapsed" class="nav-group-label">{{ group.label }}</div>
+          <div v-else v-show="!collapsed" class="nav-group-label nav-group-label--first">概览</div>
           <router-link
             v-for="item in group.items"
             :key="item.path"
@@ -24,66 +34,81 @@
         </template>
       </nav>
 
-      <button class="collapse-btn" @click="collapsed=!collapsed">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{rotated:collapsed}"><polyline points="15 18 9 12 15 6"/></svg>
+      <button class="collapse-btn" type="button" :title="collapsed ? '展开菜单' : '收起菜单'" @click="collapsed = !collapsed">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="{ rotated: collapsed }">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
       </button>
     </aside>
 
     <!-- ======== 主区域 ======== -->
     <div class="main-area">
       <header class="topbar">
-        <!-- 左侧 -->
         <div class="topbar-left">
-          <button class="hamburger" @click="collapsed=!collapsed">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <button class="icon-btn" type="button" title="切换菜单" @click="collapsed = !collapsed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
           </button>
-          <div class="breadcrumb">
+
+          <nav class="breadcrumb" aria-label="面包屑">
             <span class="bc-root">GoForge</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bc-sep"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bc-sep"><polyline points="9 18 15 12 9 6" /></svg>
+            <span v-if="currentGroup" class="bc-group">{{ currentGroup }}</span>
+            <svg v-if="currentGroup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="bc-sep"><polyline points="9 18 15 12 9 6" /></svg>
             <span class="bc-current">{{ currentTitle }}</span>
-          </div>
+          </nav>
         </div>
 
-        <!-- 右侧 -->
         <div class="topbar-right">
-          <!-- 搜索 -->
           <div class="search-box">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="text" placeholder="搜索..." class="search-input" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+            <input v-model="keyword" type="text" placeholder="搜索菜单…" class="search-input" @keyup.enter="handleSearch" />
           </div>
 
-          <!-- 通知铃铛 -->
-          <button class="notif-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <button class="icon-btn" type="button" title="通知">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
             <span class="notif-dot"></span>
           </button>
 
-          <!-- 头像下拉 -->
-          <div class="user-dropdown" @click.stop="showMenu=!showMenu">
+          <div class="user-dropdown" @click.stop="showMenu = !showMenu">
             <div class="user-avatar">{{ initial }}</div>
-            <div class="user-info" v-show="!collapsed">
+            <div class="user-info">
               <span class="user-name">{{ userStore.userInfo?.username || '管理员' }}</span>
               <span class="user-role">超级管理员</span>
             </div>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow"><polyline points="6 9 12 15 18 9" /></svg>
+
             <div v-if="showMenu" class="dropdown-menu" @click.stop>
               <div class="dm-header">
                 <span class="dm-avatar">{{ initial }}</span>
-                <div>
+                <div class="dm-text">
                   <div class="dm-name">{{ userStore.userInfo?.username || '管理员' }}</div>
-                  <div class="dm-email">{{ userStore.userInfo?.email || 'admin@goForge.dev' }}</div>
+                  <div class="dm-email">{{ userStore.userInfo?.email || 'admin@goforge.dev' }}</div>
                 </div>
               </div>
               <div class="dm-divider"></div>
               <div class="dropdown-item" @click="handleLogout">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
                 退出登录
               </div>
             </div>
           </div>
         </div>
       </header>
-      <main class="content"><router-view /></main>
+
+      <main class="content">
+        <router-view v-slot="{ Component }">
+          <transition name="gf-page" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </main>
     </div>
   </div>
 </template>
@@ -92,10 +117,15 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
-const route = useRoute(); const router = useRouter(); const userStore = useUserStore()
-const collapsed = ref(false); const showMenu = ref(false)
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+
+const collapsed = ref(false)
+const showMenu = ref(false)
+const keyword = ref('')
 const initial = computed(() => (userStore.userInfo?.username || 'A')[0].toUpperCase())
 
 const menuGroups = [
@@ -126,107 +156,355 @@ const menuGroups = [
 ]
 
 const isActive = (path: string) => route.path === path
-const currentTitle = computed(() => {
-  for (const g of menuGroups) { const m = g.items.find(i => isActive(i.path)); if (m) return m.label }
-  return '管理后台'
+
+const currentItem = computed(() => {
+  for (const g of menuGroups) {
+    const m = g.items.find((i) => isActive(i.path))
+    if (m) return m
+  }
+  return null
+})
+const currentTitle = computed(() => currentItem.value?.label || '管理后台')
+/** 面包屑带上分组名，和主流后台一致：GoForge / 基础数据 / 商品管理 */
+const currentGroup = computed(() => {
+  for (const g of menuGroups) {
+    if (g.items.some((i) => isActive(i.path))) return g.label
+  }
+  return ''
 })
 
-const handleLogout = async () => {
-  try { await ElMessageBox.confirm('确定退出？', '提示', { type: 'warning' }); userStore.logout(); router.push('/login') } catch {}
+/** 顶栏搜索在菜单里做模糊匹配，回车直接跳转 */
+const handleSearch = () => {
+  const kw = keyword.value.trim()
+  if (!kw) return
+  for (const g of menuGroups) {
+    const hit = g.items.find((i) => i.label.includes(kw))
+    if (hit) { router.push(hit.path); keyword.value = ''; return }
+  }
+  ElMessage.warning(`没有找到「${kw}」相关的菜单`)
 }
-if (typeof document !== 'undefined') document.addEventListener('click', () => { showMenu.value = false })
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定退出登录？', '提示', { type: 'warning' })
+    userStore.logout()
+    router.push('/login')
+  } catch { /* 取消 */ }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', () => { showMenu.value = false })
+}
 </script>
 
-<style>
-html, body, #app { margin:0; padding:0; background:#0A0F1C; }
-</style>
-
 <style scoped>
-.admin-layout { --accent:#00F5FF; --accent-dim:rgba(0,245,255,0.1); --sidebar-bg:#0D1320; --topbar-bg:rgba(13,19,32,0.85); --text:#EDF0F5; --text-dim:#8890A5; --border:rgba(255,255,255,0.06); --radius-sm:8px; display:flex; height:100vh; color:var(--text); font-family:'Inter','PingFang SC','SF Pro Display',-apple-system,sans-serif; overflow:hidden; }
+.admin-layout {
+  position: relative;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  color: var(--gf-text);
+  font-family: var(--gf-font);
+}
 
-/* Sidebar */
-.sidebar { width:220px; flex-shrink:0; background:var(--sidebar-bg); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:width .25s; position:relative; z-index:10; }
-.sidebar.collapsed { width:64px; }
-.sidebar.collapsed .nav-label,.sidebar.collapsed .logo-text,.sidebar.collapsed .nav-group-label { display:none; }
-.sidebar.collapsed .nav-item { justify-content:center; padding:12px; }
-.sidebar.collapsed .nav-icon { margin:0; }
+/* ==================== 侧边栏 ==================== */
+.sidebar {
+  position: relative;
+  z-index: var(--gf-z-sidebar);
+  width: 226px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(9, 13, 22, 0.9) 0%, rgba(5, 8, 14, 0.94) 100%);
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border-right: 1px solid var(--gf-stroke);
+  transition: width 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
 
-.sidebar-logo { display:flex; align-items:center; gap:10px; padding:16px 18px; cursor:pointer; border-bottom:1px solid var(--border); }
-.logo-img { height:26px; width:auto; }
-.logo-text { font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; letter-spacing:-.01em; }
+.sidebar.collapsed { width: 68px; }
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .logo-text { display: none; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 11px 0; }
 
-.sidebar-nav { flex:1; overflow-y:auto; padding:8px 10px; }
-.sidebar-nav::-webkit-scrollbar { width:4px; }
-.sidebar-nav::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 18px 18px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gf-stroke);
+}
 
-.nav-group-label { font-size:10px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; padding:16px 8px 6px; }
+.logo-img { height: 27px; width: auto; flex-shrink: 0; }
+.logo-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.logo-text strong { font-size: 14px; font-weight: 700; color: var(--gf-text); letter-spacing: -0.01em; }
+.logo-text span { font-size: 10px; color: var(--gf-text-mute); letter-spacing: 0.12em; }
 
-.nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--radius-sm); text-decoration:none; color:var(--text-dim); font-size:13px; font-weight:500; transition:all .15s; margin-bottom:1px; white-space:nowrap; position:relative; }
-.nav-item:hover { color:var(--text); background:rgba(255,255,255,.03); }
-.nav-item.active { color:var(--accent); background:var(--accent-dim); }
-.nav-item.active::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); width:3px; height:18px; background:var(--accent); border-radius:0 3px 3px 0; }
-.nav-icon { width:20px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-.nav-icon :deep(svg) { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 10px 12px 64px; }
 
-.collapse-btn { position:absolute; bottom:10px; right:10px; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--sidebar-bg); color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
-.collapse-btn:hover { color:var(--accent); border-color:var(--accent); }
-.collapse-btn svg { width:15px; height:15px; transition:transform .25s; }
-.collapse-btn svg.rotated { transform:rotate(180deg); }
+.nav-group-label {
+  padding: 16px 10px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gf-text-mute);
+  letter-spacing: 0.1em;
+}
 
-/* Main */
-.main-area { flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+.nav-group-label--first { padding-top: 6px; }
 
-/* Topbar */
-.topbar { height:56px; flex-shrink:0; background:rgba(13,19,32,0.82); backdrop-filter:blur(16px) saturate(180%); -webkit-backdrop-filter:blur(16px) saturate(180%); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; }
-.topbar-left { display:flex; align-items:center; gap:14px; }
-.hamburger { width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; flex-shrink:0; }
-.hamburger:hover { color:var(--accent); border-color:var(--accent); }
-.hamburger svg { width:18px; height:18px; }
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--gf-text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
 
-/* Breadcrumb */
-.breadcrumb { display:flex; align-items:center; gap:8px; font-size:13px; }
-.bc-root { color:var(--accent); font-weight:600; }
-.bc-sep { width:14px; height:14px; color:var(--text-dim); }
-.bc-current { color:var(--text-dim); }
+.nav-item:hover { color: var(--gf-text); background: var(--gf-glass-1); }
 
-/* Topbar Right */
-.topbar-right { display:flex; align-items:center; gap:12px; }
+.nav-item.active {
+  color: var(--gf-accent);
+  background: var(--accent-dim);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(79, 216, 255, 0.16);
+}
 
-/* Search */
-.search-box { position:relative; display:flex; align-items:center; }
-.search-icon { position:absolute; left:10px; width:15px; height:15px; color:var(--text-dim); pointer-events:none; }
-.search-input { width:180px; padding:8px 14px 8px 32px; border-radius:10px; background:rgba(255,255,255,0.05); border:1px solid transparent; color:var(--text); font-size:12px; outline:none; transition:all .25s; font-family:inherit; }
-.search-input::placeholder { color:var(--text-dim); }
-.search-input:focus { width:240px; border-color:var(--accent); background:rgba(255,255,255,0.08); box-shadow:0 0 0 3px rgba(0,245,255,.08); }
+/* 选中态左侧的渐变指示条 */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gf-gradient);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
 
-/* Notification */
-.notif-btn { position:relative; width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; flex-shrink:0; }
-.notif-btn:hover { color:var(--accent); border-color:var(--accent); }
-.notif-btn svg { width:18px; height:18px; }
-.notif-dot { position:absolute; top:7px; right:7px; width:8px; height:8px; border-radius:50%; background:#FF3B30; box-shadow:0 0 6px rgba(255,59,48,.5); }
+.nav-icon { width: 19px; height: 19px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-icon :deep(svg) { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
-/* User Dropdown */
-.user-dropdown { position:relative; display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px 12px 4px 4px; border-radius:100px; transition:background .15s; }
-.user-dropdown:hover { background:rgba(255,255,255,.04); }
-.user-avatar { width:32px; height:32px; border-radius:50%; background:var(--accent-dim); color:var(--accent); font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.user-info { display:flex; flex-direction:column; gap:0; }
-.user-name { font-size:13px; color:var(--text); font-weight:500; line-height:1.3; }
-.user-role { font-size:10px; color:var(--text-dim); line-height:1.3; }
-.arrow { width:14px; height:14px; color:var(--text-dim); }
+.collapse-btn {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gf-stroke);
+  background: var(--gf-glass-1);
+  box-shadow: var(--gf-inner-shadow-soft);
+  color: var(--gf-text-dim);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
 
-/* Dropdown */
-.dropdown-menu { position:absolute; top:calc(100%+8px); right:0; min-width:200px; background:#111827; border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,.5); z-index:50; }
-.dm-header { display:flex; align-items:center; gap:10px; padding:14px 16px; }
-.dm-avatar { width:36px; height:36px; border-radius:50%; background:var(--accent-dim); color:var(--accent); font-weight:700; font-size:15px; display:flex; align-items:center; justify-content:center; }
-.dm-name { font-size:13px; color:var(--text); font-weight:600; }
-.dm-email { font-size:11px; color:var(--text-dim); }
-.dm-divider { height:1px; background:var(--border); }
-.dropdown-item { display:flex; align-items:center; gap:8px; padding:10px 16px; cursor:pointer; font-size:13px; color:#F87171; transition:background .15s; }
-.dropdown-item svg { width:16px; height:16px; }
-.dropdown-item:hover { background:rgba(248,113,113,.1); }
+.collapse-btn:hover { color: var(--gf-accent); border-color: rgba(79, 216, 255, 0.4); background: var(--gf-glass-2); }
+.collapse-btn svg { width: 15px; height: 15px; transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+.collapse-btn svg.rotated { transform: rotate(180deg); }
 
-/* Content */
-.content { flex:1; overflow-y:auto; padding:24px; background:#0A0F1C; }
-.content::-webkit-scrollbar { width:5px; }
-.content::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+/* ==================== 主区域 ==================== */
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+/* ==================== 顶栏 ==================== */
+.topbar {
+  position: relative;
+  z-index: var(--gf-z-topbar);
+  height: 60px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--gf-topbar);
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border-bottom: 1px solid var(--gf-stroke);
+}
+
+.topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.icon-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gf-stroke);
+  background: var(--gf-glass-1);
+  box-shadow: var(--gf-inner-shadow-soft);
+  color: var(--gf-text-dim);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.icon-btn:hover { color: var(--gf-accent); border-color: rgba(79, 216, 255, 0.4); background: var(--gf-glass-2); }
+.icon-btn svg { width: 17px; height: 17px; }
+
+.notif-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gf-danger);
+  box-shadow: 0 0 8px var(--gf-danger);
+}
+
+/* 面包屑 */
+.breadcrumb { display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
+.bc-root { color: var(--gf-text-mute); font-weight: 500; }
+.bc-sep { width: 13px; height: 13px; color: var(--gf-text-mute); flex-shrink: 0; }
+.bc-group { color: var(--gf-text-dim); white-space: nowrap; }
+.bc-current { color: var(--gf-text); font-weight: 600; white-space: nowrap; }
+
+/* 搜索 */
+.search-box { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 11px; width: 15px; height: 15px; color: var(--gf-text-mute); pointer-events: none; }
+
+.search-input {
+  width: 190px;
+  padding: 9px 14px 9px 33px;
+  border-radius: var(--radius-sm);
+  background: var(--gf-glass-1);
+  border: 1px solid var(--gf-stroke);
+  box-shadow: var(--gf-inner-shadow-soft);
+  color: var(--gf-text);
+  font-size: 13px;
+  font-family: var(--gf-font);
+  outline: none;
+  transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input::placeholder { color: var(--gf-text-mute); }
+.search-input:focus {
+  width: 240px;
+  border-color: rgba(79, 216, 255, 0.5);
+  background: var(--gf-glass-2);
+  box-shadow: var(--gf-inner-shadow-soft), 0 0 0 3px var(--accent-dim);
+}
+
+/* 用户菜单 */
+.user-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.user-dropdown:hover { background: var(--gf-glass-1); border-color: var(--gf-stroke); }
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--gf-gradient);
+  color: #04121a;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--gf-inner-shadow-soft), 0 6px 16px -8px var(--accent-glow);
+}
+
+.user-info { display: flex; flex-direction: column; gap: 0; }
+.user-name { font-size: 13px; font-weight: 600; color: var(--gf-text); line-height: 1.35; }
+.user-role { font-size: 10px; color: var(--gf-text-mute); line-height: 1.35; }
+.arrow { width: 14px; height: 14px; color: var(--gf-text-mute); }
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 216px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--gf-glass-deep);
+  -webkit-backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  backdrop-filter: blur(var(--gf-blur-lg)) saturate(var(--gf-saturate));
+  border: 1px solid var(--gf-stroke-strong);
+  box-shadow: var(--gf-shadow-3), var(--gf-inner-shadow);
+  z-index: 50;
+}
+
+.dm-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.dm-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--gf-gradient);
+  color: #04121a;
+  font-size: 15px;
+  font-weight: 700;
+}
+.dm-text { min-width: 0; }
+.dm-name { font-size: 13px; font-weight: 600; color: var(--gf-text); }
+.dm-email { font-size: 11px; color: var(--gf-text-mute); overflow: hidden; text-overflow: ellipsis; }
+.dm-divider { height: 1px; margin: 6px 0; background: var(--gf-stroke); }
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  color: var(--gf-danger);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.dropdown-item svg { width: 16px; height: 16px; }
+.dropdown-item:hover { background: rgba(255, 107, 129, 0.12); }
+
+/* ==================== 内容区 ==================== */
+.content {
+  position: relative;
+  z-index: var(--gf-z-content);
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 24px 32px;
+}
+
+@media (max-width: 900px) {
+  .sidebar { position: absolute; height: 100%; transform: translateX(-100%); transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+  .sidebar.collapsed { width: 226px; transform: translateX(0); }
+  .sidebar.collapsed .nav-label,
+  .sidebar.collapsed .logo-text { display: flex; }
+  .sidebar.collapsed .nav-item { justify-content: flex-start; padding: 10px 12px; }
+  .content { padding: 16px 14px 28px; }
+  .search-input { width: 140px; }
+  .search-input:focus { width: 170px; }
+}
 </style>

@@ -1,0 +1,233 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: logistics-service）",
+    "title": "logistics service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "logistics"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/logistics": {
+      "get": {
+        "description": "gRPC 方法: logistics.v1.LogisticsService/ListLogistics",
+        "operationId": "logistics.v1.LogisticsService_ListLogistics",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ListLogistics",
+        "tags": [
+          "logistics"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: logistics.v1.LogisticsService/CreateLogistics",
+        "operationId": "logistics.v1.LogisticsService_CreateLogistics",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 logistics.v1.LogisticsService/CreateLogistics 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CreateLogistics",
+        "tags": [
+          "logistics"
+        ]
+      }
+    },
+    "/api/v1/logistics/calculate-freight": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: logistics.v1.LogisticsService/CalculateFreight",
+        "operationId": "logistics.v1.LogisticsService_CalculateFreight",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 logistics.v1.LogisticsService/CalculateFreight 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CalculateFreight",
+        "tags": [
+          "logistics"
+        ]
+      }
+    },
+    "/api/v1/logistics/tracking": {
+      "get": {
+        "description": "gRPC 方法: logistics.v1.LogisticsService/QueryTracking",
+        "operationId": "logistics.v1.LogisticsService_QueryTracking",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "QueryTracking",
+        "tags": [
+          "logistics"
+        ]
+      }
+    },
+    "/api/v1/logistics/{logistics_no}/status": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: logistics.v1.LogisticsService/UpdateLogisticsStatus",
+        "operationId": "logistics.v1.LogisticsService_UpdateLogisticsStatus",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 logistics.v1.LogisticsService/UpdateLogisticsStatus 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "UpdateLogisticsStatus",
+        "tags": [
+          "logistics"
+        ]
+      }
+    },
+    "/api/v1/logistics/{order_id}": {
+      "get": {
+        "description": "gRPC 方法: logistics.v1.LogisticsService/GetLogistics",
+        "operationId": "logistics.v1.LogisticsService_GetLogistics",
+        "parameters": [
+          {
+            "description": "order_id 参数",
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetLogistics",
+        "tags": [
+          "logistics"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

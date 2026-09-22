@@ -1,0 +1,197 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "由 ../configs/dev/gateway.yaml 生成（upstream: promotion-service）",
+    "title": "promotion service API",
+    "version": "1.0.0"
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "tags": [
+    {
+      "name": "promotion"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/promotion/coupons": {
+      "get": {
+        "description": "gRPC 方法: promotion.v1.PromotionService/GetCouponList",
+        "operationId": "promotion.v1.PromotionService_GetCouponList",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetCouponList",
+        "tags": [
+          "promotion"
+        ]
+      }
+    },
+    "/api/v1/promotion/coupons/calculate": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: promotion.v1.PromotionService/CalculateDiscount",
+        "operationId": "promotion.v1.PromotionService_CalculateDiscount",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 promotion.v1.PromotionService/CalculateDiscount 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "CalculateDiscount",
+        "tags": [
+          "promotion"
+        ]
+      }
+    },
+    "/api/v1/promotion/coupons/{coupon_id}/receive": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "gRPC 方法: promotion.v1.PromotionService/ReceiveCoupon",
+        "operationId": "promotion.v1.PromotionService_ReceiveCoupon",
+        "parameters": [
+          {
+            "description": "请求体（JSON，字段与 promotion.v1.PromotionService/ReceiveCoupon 的 proto message 一致）",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "ReceiveCoupon",
+        "tags": [
+          "promotion"
+        ]
+      }
+    },
+    "/api/v1/promotion/promotions": {
+      "get": {
+        "description": "gRPC 方法: promotion.v1.PromotionService/GetPromotionList",
+        "operationId": "promotion.v1.PromotionService_GetPromotionList",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetPromotionList",
+        "tags": [
+          "promotion"
+        ]
+      }
+    },
+    "/api/v1/promotion/user-coupons/{user_id}": {
+      "get": {
+        "description": "gRPC 方法: promotion.v1.PromotionService/GetUserCouponList",
+        "operationId": "promotion.v1.PromotionService_GetUserCouponList",
+        "parameters": [
+          {
+            "description": "user_id 参数",
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功（响应体为 { code, message, data }）"
+          },
+          "default": {
+            "description": "错误",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "summary": "GetUserCouponList",
+        "tags": [
+          "promotion"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "rpcStatus": {
+      "description": "gRPC 错误（code 非 0 时返回）",
+      "properties": {
+        "code": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

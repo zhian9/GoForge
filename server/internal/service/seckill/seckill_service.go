@@ -6,6 +6,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	v1 "github.com/zhian9/GoForge/server/api/seckill/v1"
 	"github.com/zhian9/GoForge/server/internal/pkg/cache"
+	"github.com/zhian9/GoForge/server/internal/pkg/constants"
 	"github.com/zhian9/GoForge/server/internal/pkg/mq"
 	"github.com/zhian9/GoForge/server/internal/pkg/utils"
 	"github.com/zhian9/GoForge/server/internal/service/seckill/model"
@@ -41,7 +42,7 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 		return nil, status.Error(codes.FailedPrecondition, "秒杀活动未初始化(数据库未连接)")
 	}
 	now := time.Now().Unix()
-	_, err := s.svcCtx.SeckillActivityRepo.GetActiveBySkuID(ctx, uint64(req.SkuId), now)
+	activity, err := s.svcCtx.SeckillActivityRepo.GetActiveBySkuID(ctx, uint64(req.SkuId), now)
 	if err != nil {
 		//没有活动 /未开始 /已结束
 		return &v1.SeckillResponse{
@@ -53,6 +54,11 @@ func (s *SeckillService) Seckill(ctx context.Context, req *v1.SeckillRequest) (*
 			},
 		}, nil
 	}
+
+	// Redis 里的库存闸门只由创建/编辑活动时预热，没有兜底。若 Redis 重启或 key 被清掉，
+	// 下面的 Lua 脚本会读不到 key 而恒返回「已抢光」——有库存却卖不出去。
+	// 这里在下单前兜底重建一次（重建口径见函数注释）。
+	s.ensureSeckillStockGate(ctx, activity)
 
 	//Redis Lua 脚本执行：防超卖 + 防重复
 	stockKey := fmt.Sprintf("seckill:stock:%d", req.SkuId)
@@ -486,6 +492,117 @@ func (s *SeckillService) rollbackSeckill(ctx context.Context, skuID, userID int6
 	}
 
 	logx.Infof("秒杀预扣已回滚: sku_id=%d, user_id=%d, quantity=%d", skuID, userID, quantity)
+}
+
+// seckillSoldRow 回源统计已售数量时的行结构
+type seckillSoldRow struct {
+	Quantity  int       `gorm:"column:quantity"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+}
+
+// ensureSeckillStockGate 确保 Redis 里的秒杀库存闸门存在，缺失时从数据库回源重建。
+//
+// 重建口径（宁可少卖，不可超卖）：
+//
+//		剩余 = min(活动库存 - 活动窗口内已售数量, sku 真源库存)
+//
+//	  - 已售数量按「同一 SKU、秒杀订单、未取消、下单时间不早于活动开始时间」统计，
+//	    与消费端扣减真源库存、超时取消后释放配额的口径保持一致；
+//	  - 再与 sku.stock 取小：即使统计有偏差，也不会卖出比真源更多的库存；
+//	  - 用 SetNX 写入，多个请求同时发现 key 缺失时只有一个生效，避免重复重建把库存放大。
+//
+// 回源失败时不写 key，保持原有行为（Lua 读不到 key 会按「已抢光」拒绝），不会超卖。
+func (s *SeckillService) ensureSeckillStockGate(ctx context.Context, act *model.SeckillActivity) {
+	if s.svcCtx.Redis == nil || act == nil || act.Stock <= 0 {
+		return
+	}
+
+	stockKey := fmt.Sprintf("seckill:stock:%d", act.SkuID)
+	exists, err := s.svcCtx.Redis.Exists(ctx, stockKey).Result()
+	if err != nil {
+		logx.Errorf("检查秒杀库存闸门失败: sku_id=%d, err=%v", act.SkuID, err)
+		return
+	}
+	if exists > 0 {
+		return
+	}
+
+	remaining, err := s.rebuildSeckillStock(ctx, act)
+	if err != nil {
+		logx.Errorf("秒杀库存闸门缺失且回源重建失败，本次按已抢光处理: sku_id=%d, activity_id=%d, err=%v",
+			act.SkuID, act.ID, err)
+		return
+	}
+
+	written, err := s.svcCtx.Redis.SetNX(ctx, stockKey, remaining, 0).Result()
+	if err != nil {
+		logx.Errorf("重建秒杀库存闸门失败: sku_id=%d, err=%v", act.SkuID, err)
+		return
+	}
+
+	logx.Infof("秒杀库存闸门缺失，已从数据库重建: sku_id=%d, activity_id=%d, remaining=%d, written=%v",
+		act.SkuID, act.ID, remaining, written)
+}
+
+// rebuildSeckillStock 计算闸门的重建值。
+func (s *SeckillService) rebuildSeckillStock(ctx context.Context, act *model.SeckillActivity) (int64, error) {
+	if s.svcCtx.DB == nil {
+		return 0, fmt.Errorf("数据库未初始化")
+	}
+
+	sold, err := s.seckillSoldQuantity(ctx, act)
+	if err != nil {
+		return 0, err
+	}
+
+	remaining := int64(act.Stock) - sold
+
+	// 与真源库存取小：真源是最终约束，闸门再大也不能卖出超过真源的量。
+	// 注意 SKU 不存在时这里查到 0，等价于该活动已无法继续售卖，属于保守结果。
+	var realStock int64
+	if err := s.svcCtx.DB.WithContext(ctx).Table("sku").
+		Select("COALESCE(stock, 0)").Where("id = ?", act.SkuID).Scan(&realStock).Error; err != nil {
+		return 0, err
+	}
+	if realStock < remaining {
+		remaining = realStock
+	}
+
+	if remaining < 0 {
+		remaining = 0
+	}
+	return remaining, nil
+}
+
+// seckillSoldQuantity 统计本次活动窗口内已售出的秒杀数量。
+//
+// 时间比较放在 Go 里而不是 SQL 里用 FROM_UNIXTIME：UNIX_TIMESTAMP 的换算依赖 MySQL
+// 会话时区（容器里通常是 UTC），而 created_at 是应用按本地时区写入的 DATETIME，
+// 两者混用在时区不一致时会把活动窗口算错 8 小时。这里按驱动解析出的时间去比较，
+// 与写入时的时区语义完全一致。
+func (s *SeckillService) seckillSoldQuantity(ctx context.Context, act *model.SeckillActivity) (int64, error) {
+	var rows []seckillSoldRow
+	err := s.svcCtx.DB.WithContext(ctx).Raw(`
+		SELECT oi.quantity AS quantity, o.created_at AS created_at
+		FROM order_item oi
+		JOIN orders o ON o.id = oi.order_id
+		WHERE oi.sku_id = ?
+		  AND o.order_type = ?
+		  AND o.status <> ?
+	`, act.SkuID, constants.OrderTypeSeckill, constants.OrderStatusCanceled).Scan(&rows).Error
+	if err != nil {
+		return 0, err
+	}
+
+	var sold int64
+	for _, row := range rows {
+		// 只统计本次活动的订单：更早活动卖掉的量不该再从本次活动配额里扣
+		if row.CreatedAt.Unix() < act.StartTime {
+			continue
+		}
+		sold += int64(row.Quantity)
+	}
+	return sold, nil
 }
 
 // validateActivityStock 校验秒杀活动配置的库存不超过商品的真源库存。

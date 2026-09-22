@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,16 +100,33 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 		ProductName string
 		Price       float64
 	}
+	// 先收集缺价格的 SKU，一次 IN 查询取回，避免在下单循环里逐条查（N+1）
+	missingPriceSkuIDs := make([]uint64, 0, len(req.Items))
+	for _, itemReq := range req.Items {
+		if itemReq.Price <= 0 {
+			missingPriceSkuIDs = append(missingPriceSkuIDs, itemReq.SkuID)
+		}
+	}
+	priceBySkuID := make(map[uint64]float64, len(missingPriceSkuIDs))
+	if len(missingPriceSkuIDs) > 0 && l.db != nil {
+		var rows []struct {
+			ID    uint64  `gorm:"column:id"`
+			Price float64 `gorm:"column:price"`
+		}
+		if err := l.db.WithContext(ctx).Table("sku").Select("id, price").Where("id IN ?", missingPriceSkuIDs).Scan(&rows).Error; err == nil {
+			for _, row := range rows {
+				if row.Price > 0 {
+					priceBySkuID[row.ID] = row.Price
+				}
+			}
+		}
+	}
 	resolvedItems := make([]resolvedItem, 0, len(req.Items))
 	var totalAmount float64
 	for _, itemReq := range req.Items {
 		price := itemReq.Price
-		if price <= 0 && l.db != nil {
-			var skuPrice float64
-			_ = l.db.WithContext(ctx).Table("sku").Select("price").Where("id = ?", itemReq.SkuID).Scan(&skuPrice).Error
-			if skuPrice > 0 {
-				price = skuPrice
-			}
+		if price <= 0 {
+			price = priceBySkuID[itemReq.SkuID]
 		}
 		totalAmount += price * float64(itemReq.Quantity)
 		resolvedItems = append(resolvedItems, resolvedItem{
@@ -137,44 +156,73 @@ func (l *OrderLogic) CreateOrder(ctx context.Context, req *CreateOrderRequest) (
 		order.Remark = &req.Remark
 	}
 
-	// 5. 保存订单
-	if err := l.orderRepo.Create(ctx, order); err != nil {
-		return nil, apperrors.NewInternalError("创建订单失败: " + err.Error())
+	// 5. 写订单 / 订单项 / 扣库存放在同一个事务里：
+	//    任何一步失败都整体回滚，避免出现「订单已建但库存没扣」这类半截数据。
+	if l.db == nil {
+		return nil, apperrors.NewInternalError("数据库连接未初始化，无法创建订单")
 	}
-
-	// 新订单创建后，清理该用户订单列表缓存，避免列表不刷新
-	if l.cache != nil {
-		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
-	}
-
-	// 6. 创建订单商品项
-	items := make([]*model.OrderItem, 0, len(resolvedItems))
-	for _, it := range resolvedItems {
-		item := &model.OrderItem{
-			OrderID:     order.ID,
-			OrderNo:     orderNo,
-			ProductID:   0,              // 需要从商品服务获取
-			ProductName: it.ProductName, // 需要从商品服务获取
-			SkuID:       it.SkuID,
-			SkuCode:     "", // 需要从商品服务获取
-			SkuName:     "", // 需要从商品服务获取
-			Price:       it.Price,
-			Quantity:    it.Quantity,
-			TotalAmount: it.Price * float64(it.Quantity),
+	txErr := l.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 先锁定并试算优惠券（只认 token 里的 userID），再写订单，
+		// 这样订单金额与券的核销状态在同一事务里保持一致。
+		discount, err := lockAndCalcCoupon(ctx, tx, req.UserID, req.CouponID, totalAmount)
+		if err != nil {
+			return err
 		}
-		items = append(items, item)
-	}
-
-	if err := l.orderItemRepo.CreateBatch(ctx, items); err != nil {
-		return nil, apperrors.NewInternalError("创建订单商品项失败: " + err.Error())
-	}
-
-	// 扣减库存（sku.stock 为唯一真源，inventory 同步）
-	for _, itemReq := range req.Items {
-		if err := deductStock(ctx, l.db, l.cache, itemReq.SkuID, itemReq.Quantity); err != nil {
-			return nil, apperrors.NewInternalError("扣减库存失败: " + err.Error())
+		order.DiscountAmount = discount
+		order.PayAmount = math.Round((totalAmount-discount)*100) / 100
+		if order.PayAmount < 0 {
+			order.PayAmount = 0
 		}
+
+		orderRepoTx := repository.NewOrderRepository(tx)
+		if err := orderRepoTx.Create(ctx, order); err != nil {
+			return fmt.Errorf("创建订单失败: %w", err)
+		}
+
+		// 订单落库拿到 ID 之后再把券挂到订单上（status=0 的条件更新保证并发下只核销一次）
+		if req.CouponID > 0 {
+			if err := redeemUserCoupon(ctx, tx, req.CouponID, order.ID); err != nil {
+				return err
+			}
+		}
+
+		// 订单项依赖订单自增 ID，必须在订单写入之后再构造
+		items := make([]*model.OrderItem, 0, len(resolvedItems))
+		for _, it := range resolvedItems {
+			items = append(items, &model.OrderItem{
+				OrderID:     order.ID,
+				OrderNo:     orderNo,
+				ProductID:   0,              // 需要从商品服务获取
+				ProductName: it.ProductName, // 需要从商品服务获取
+				SkuID:       it.SkuID,
+				SkuCode:     "", // 需要从商品服务获取
+				SkuName:     "", // 需要从商品服务获取
+				Price:       it.Price,
+				Quantity:    it.Quantity,
+				TotalAmount: it.Price * float64(it.Quantity),
+			})
+		}
+		if len(items) > 0 {
+			orderItemRepoTx := repository.NewOrderItemRepository(tx)
+			if err := orderItemRepoTx.CreateBatch(ctx, items); err != nil {
+				return fmt.Errorf("创建订单商品项失败: %w", err)
+			}
+		}
+
+		// 扣减库存（sku.stock 为唯一真源，inventory 同步）
+		for _, it := range resolvedItems {
+			if err := deductStock(ctx, tx, l.cache, it.SkuID, it.Quantity); err != nil {
+				return fmt.Errorf("扣减库存失败: %w", err)
+			}
+		}
+		return nil
+	})
+	if txErr != nil {
+		return nil, apperrors.NewInternalError(txErr.Error())
 	}
+
+	// 事务提交后再失效缓存，避免回滚时把缓存清空却查不到新订单
+	invalidateOrderListCache(ctx, l.cache, req.UserID)
 
 	// 6. 记录订单日志
 	log := &model.OrderLog{
@@ -310,12 +358,15 @@ func (l *OrderLogic) ListOrders(ctx context.Context, req *ListOrdersRequest) (*L
 	}
 
 	// 构建缓存键
+	// 注意：必须带上 PageSize —— 否则「每页 6 条」和「每页 1 条」这类不同分页的请求
+	// 会命中同一份缓存，出现「请求 page_size=3 却返回 page_size=6 的数据」这种串数据。
 	if l.cache != nil {
-		cacheKey := fmt.Sprintf("%s%d:%d:%d",
+		cacheKey := fmt.Sprintf("%s%d:%d:%d:%d",
 			cache.KeyPrefixOrderList,
 			req.UserID,
 			req.Status,
 			req.Page,
+			req.PageSize,
 		)
 		var cachedResp ListOrdersResponse
 		if err := l.cache.GetJSON(ctx, cacheKey, &cachedResp); err == nil {
@@ -337,14 +388,19 @@ func (l *OrderLogic) ListOrders(ctx context.Context, req *ListOrdersRequest) (*L
 		return nil, apperrors.NewInternalError("查询订单列表失败: " + err.Error())
 	}
 
-	// 为每个订单加载订单项
-	for _, order := range orders {
-		items, err := l.orderItemRepo.GetByOrderID(ctx, order.ID)
+	// 批量加载订单项：一次 IN 查询，避免每单一次的 N+1
+	if len(orders) > 0 {
+		orderIDs := make([]uint64, 0, len(orders))
+		for _, order := range orders {
+			orderIDs = append(orderIDs, order.ID)
+		}
+		itemsByOrderID, err := l.orderItemRepo.GetByOrderIDs(ctx, orderIDs)
 		if err != nil {
 			// 记录错误但不中断，因为订单本身是成功的
-			logx.Errorf("加载订单项失败 order_id=%d: %v", order.ID, err)
-			order.Items = []model.OrderItem{} // 设置为空数组
-		} else {
+			logx.Errorf("批量加载订单项失败: %v", err)
+		}
+		for _, order := range orders {
+			items := itemsByOrderID[order.ID]
 			// 转换 []*model.OrderItem 为 []model.OrderItem
 			orderItems := make([]model.OrderItem, len(items))
 			for i, item := range items {
@@ -369,11 +425,13 @@ func (l *OrderLogic) ListOrders(ctx context.Context, req *ListOrdersRequest) (*L
 
 	// 写入缓存（5分钟）
 	if l.cache != nil {
-		cacheKey := fmt.Sprintf("%s%d:%d:%d",
+		// key 必须和上面读取时完全一致（含 PageSize），否则缓存永远读不中
+		cacheKey := fmt.Sprintf("%s%d:%d:%d:%d",
 			cache.KeyPrefixOrderList,
 			req.UserID,
 			req.Status,
 			req.Page,
+			req.PageSize,
 		)
 		_ = l.cache.Set(ctx, cacheKey, resp, 5*time.Minute)
 	}
@@ -432,12 +490,15 @@ func (l *OrderLogic) CancelOrder(ctx context.Context, req *CancelOrderRequest) (
 		}
 	}
 
+	// 退回优惠券（整单取消后券可再次使用）
+	releaseUserCoupon(ctx, l.db, order.ID)
+
 	// 删除缓存
 	if l.cache != nil {
 		detailKey := cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID)
 		_ = l.cache.Delete(ctx, detailKey)
-		// 删除该用户所有订单列表缓存（避免取消后列表还是“待支付”，导致再次取消报 403）
-		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
+		// 失效该用户订单列表缓存（避免取消后列表还是“待支付”，导致再次取消报 403）
+		invalidateOrderListCache(ctx, l.cache, order.UserID)
 	}
 
 	// 记录订单日志
@@ -455,6 +516,7 @@ func (l *OrderLogic) CancelOrder(ctx context.Context, req *CancelOrderRequest) (
 	// 发送订单取消Kafka消息
 	if l.mqProducer != nil {
 		message := mq.NewMessage(mq.TopicOrderCancelled, map[string]interface{}{
+			"user_id":  order.UserID,
 			"order_id": order.ID,
 			"order_no": order.OrderNo,
 			"reason":   reason,
@@ -580,7 +642,7 @@ func (l *OrderLogic) ShipOrder(ctx context.Context, req *ShipOrderRequest) (*Shi
 	// 清缓存
 	if l.cache != nil {
 		_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID))
-		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
+		invalidateOrderListCache(ctx, l.cache, order.UserID)
 	}
 
 	return &ShipOrderResponse{Success: true}, nil
@@ -651,7 +713,7 @@ func (l *OrderLogic) ConfirmReceive(ctx context.Context, req *ConfirmReceiveRequ
 	// 清缓存（详情 + 列表），避免列表仍显示「待收货」
 	if l.cache != nil {
 		_ = l.cache.Delete(ctx, cache.BuildKey(cache.KeyPrefixOrderDetail, order.ID))
-		_ = l.cache.DeletePattern(ctx, cache.KeyPrefixOrderList+"*")
+		invalidateOrderListCache(ctx, l.cache, order.UserID)
 	}
 
 	// 记录订单日志
@@ -718,6 +780,131 @@ func deductStock(ctx context.Context, db *gorm.DB, cacheOps *cache.CacheOperatio
 	// 失效商品缓存：列表 / 详情 / SKU 信息，避免管理端商品列表库存显示旧值
 	invalidateProductCache(ctx, db, cacheOps, skuID)
 	return nil
+}
+
+// userCouponRow / couponRow 只取核销需要的字段（列名与 database/schema.sql 一致）
+type userCouponRow struct {
+	ID       uint64    `gorm:"column:id"`
+	CouponID uint64    `gorm:"column:coupon_id"`
+	Status   int8      `gorm:"column:status"` // 0-未使用 1-已使用 2-已过期
+	OrderID  *uint64   `gorm:"column:order_id"`
+	ExpireAt time.Time `gorm:"column:expire_at"`
+}
+
+type couponRow struct {
+	ID            uint64   `gorm:"column:id"`
+	Type          int8     `gorm:"column:type"`          // 1-满减 2-折扣 3-免运费
+	DiscountType  int8     `gorm:"column:discount_type"` // 1-固定金额 2-百分比
+	DiscountValue float64  `gorm:"column:discount_value"`
+	MinAmount     float64  `gorm:"column:min_amount"`
+	MaxDiscount   *float64 `gorm:"column:max_discount"`
+	Status        int8     `gorm:"column:status"`
+}
+
+// lockAndCalcCoupon 在事务内锁定并校验用户券，返回可抵扣金额。
+//
+// 规则：券必须属于当前用户（token 里的 userID）、未使用、未过期，且订单金额达到门槛；
+// 折扣券按百分比计算并受 max_discount 上限约束，最终不超过订单金额本身。
+func lockAndCalcCoupon(ctx context.Context, tx *gorm.DB, userID, userCouponID uint64, totalAmount float64) (float64, error) {
+	if userCouponID == 0 {
+		return 0, nil
+	}
+	if tx == nil {
+		return 0, fmt.Errorf("数据库连接未初始化，无法校验优惠券")
+	}
+
+	// FOR UPDATE 行锁：并发下单时同一张券只会被核销一次
+	var uc userCouponRow
+	if err := tx.WithContext(ctx).Raw(
+		"SELECT id, coupon_id, status, order_id, expire_at FROM user_coupon WHERE id = ? AND user_id = ? FOR UPDATE",
+		userCouponID, userID,
+	).Scan(&uc).Error; err != nil {
+		return 0, fmt.Errorf("查询优惠券失败: %w", err)
+	}
+	if uc.ID == 0 {
+		return 0, fmt.Errorf("优惠券不存在")
+	}
+	if uc.Status != 0 {
+		return 0, fmt.Errorf("优惠券已使用或已失效")
+	}
+	if time.Now().After(uc.ExpireAt) {
+		return 0, fmt.Errorf("优惠券已过期")
+	}
+
+	var c couponRow
+	if err := tx.WithContext(ctx).Raw(
+		"SELECT id, type, discount_type, discount_value, min_amount, max_discount, status FROM coupon WHERE id = ?",
+		uc.CouponID,
+	).Scan(&c).Error; err != nil {
+		return 0, fmt.Errorf("查询优惠券规则失败: %w", err)
+	}
+	if c.ID == 0 || c.Status != 1 {
+		return 0, fmt.Errorf("优惠券不可用")
+	}
+	if totalAmount < c.MinAmount {
+		return 0, fmt.Errorf("订单金额未满 %s 元，无法使用该优惠券", strconv.FormatFloat(c.MinAmount, 'f', 2, 64))
+	}
+
+	discount := 0.0
+	switch c.DiscountType {
+	case 1: // 固定金额
+		discount = c.DiscountValue
+	case 2: // 百分比折扣：discount_value 表示折扣百分比（如 10 = 减 10%）
+		discount = totalAmount * c.DiscountValue / 100
+		if c.MaxDiscount != nil && discount > *c.MaxDiscount {
+			discount = *c.MaxDiscount
+		}
+	}
+	if discount > totalAmount {
+		discount = totalAmount
+	}
+	if discount < 0 {
+		discount = 0
+	}
+	return math.Round(discount*100) / 100, nil
+}
+
+// redeemUserCoupon 把用户券标记为已使用并挂到订单上
+func redeemUserCoupon(ctx context.Context, tx *gorm.DB, userCouponID, orderID uint64) error {
+	res := tx.WithContext(ctx).Exec(
+		"UPDATE user_coupon SET status = 1, order_id = ?, used_at = NOW() WHERE id = ? AND status = 0",
+		orderID, userCouponID,
+	)
+	if res.Error != nil {
+		return fmt.Errorf("核销优惠券失败: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("优惠券已被使用")
+	}
+	return nil
+}
+
+// releaseUserCoupon 取消订单时把券退回未使用状态（失败只记日志，不影响取消主流程）
+func releaseUserCoupon(ctx context.Context, db *gorm.DB, orderID uint64) {
+	if db == nil || orderID == 0 {
+		return
+	}
+	if err := db.WithContext(ctx).Exec(
+		"UPDATE user_coupon SET status = 0, order_id = NULL, used_at = NULL WHERE order_id = ? AND status = 1",
+		orderID,
+	).Error; err != nil {
+		logx.Errorf("退还优惠券失败 order_id=%d: %v", orderID, err)
+	}
+}
+
+// invalidateOrderListCache 失效订单列表缓存。
+//
+// 列表 key 形如 order:list:{user_id}:{status}:{page}:{page_size}，
+// 因此只需清该用户自己的命名空间；管理端「全部订单」（user_id=0）也一并清掉。
+// 之前这里用的是 order:list:*，等于每次下单/取消都把所有人的列表缓存清空。
+func invalidateOrderListCache(ctx context.Context, cacheOps *cache.CacheOperations, userID uint64) {
+	if cacheOps == nil {
+		return
+	}
+	if userID > 0 {
+		_ = cacheOps.DeletePattern(ctx, fmt.Sprintf("%s%d:*", cache.KeyPrefixOrderList, userID))
+	}
+	_ = cacheOps.DeletePattern(ctx, fmt.Sprintf("%s0:*", cache.KeyPrefixOrderList))
 }
 
 // invalidateProductCache 扣减库存后失效商品相关缓存（列表用 pattern，详情/SKU 用精确键）

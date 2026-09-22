@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { loginLocation, normalizeRedirect } from '@/utils/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -85,6 +86,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/profile/Profile.vue'),
         meta: { title: '个人中心', requiresAuth: true },
       },
+      {
+        // 领券中心对游客开放（领取时才要求登录），与商品页一致
+        path: 'coupons',
+        name: 'Coupons',
+        component: () => import('@/views/coupons/CouponCenter.vue'),
+        meta: { title: '优惠券' },
+      },
+      {
+        path: 'messages',
+        name: 'Messages',
+        component: () => import('@/views/messages/MessageCenter.vue'),
+        meta: { title: '消息中心', requiresAuth: true },
+      },
     ],
   },
 ]
@@ -98,15 +112,15 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const userStore = useUserStore()
   
-  // 如果访问登录/注册页且已登录，跳转到首页
+  // 如果访问登录/注册页且已登录，直接放行到用户原本要去的页面
   if ((to.path === '/login' || to.path === '/register') && userStore.token) {
-    next('/')
+    next(normalizeRedirect(to.query.redirect as string))
     return
   }
   
-  // 需要登录的页面
+  // 需要登录的页面：带上当前地址，登录成功后回到用户本来想去的页面
   if (to.meta.requiresAuth && !userStore.token) {
-    next('/login')
+    next(loginLocation(to.fullPath))
     return
   }
   
